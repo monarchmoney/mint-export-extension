@@ -140,8 +140,8 @@ devDependencies:
     specifier: 29.0.3
     version: 29.0.3(@types/node@18.15.11)(ts-node@10.9.1)
   jest-environment-jsdom:
-    specifier: 29.5.0
-    version: 29.5.0
+    specifier: 29.7.0
+    version: 29.7.0
   lint-staged:
     specifier: ^14.0.1
     version: 14.0.1
@@ -4162,8 +4162,8 @@ packages:
       pretty-format: 29.7.0
     dev: true
 
-  /jest-environment-jsdom@29.5.0:
-    resolution: {integrity: sha512-/KG8yEK4aN8ak56yFVdqFDzKNHgF4BAymCx2LbPNPsUshUlfAl0eX402Xm1pt+eoG9SLZEUVifqXtX8SK74KCw==}
+  /jest-environment-jsdom@29.7.0:
+    resolution: {integrity: sha512-k9iQbsf9OyOfdzWH8HDmrRT0gSIcX+FLNW7IQq94tFX0gynPwqDTW0Ho6iMVNjGz/nb+l/vW3dWM2bbLLpkbXA==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     peerDependencies:
       canvas: ^2.5.0
