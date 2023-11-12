@@ -41,11 +41,10 @@ jobs:
       - name: Install dependencies
         run: |
           pnpm install
-          pnpm add -g chrome-webstore-upload-cli
           pnpm run release ${{ github.event.inputs.release_type }}
       - name: Upload to Chrome Web Store
         run: |
-          chrome-webstore-upload upload \
+          pnpm run chrome-webstore-upload upload \
             --source chrome-extension.zip \
             --extension-id ${{ env.EXTENSION_ID }} \
             --client-id ${{ secrets.GOOGLE_CLIENT_ID }} \

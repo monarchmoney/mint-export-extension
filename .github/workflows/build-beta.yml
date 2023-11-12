@@ -1,4 +1,4 @@
-name: Build and release Beta Version
+name: Build Beta Version
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - beta
+      - main
 
 permissions:
   contents: write
@@ -44,12 +44,13 @@ jobs:
       - run: |
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-      - name: Build, package, and release extension
-        run: pnpm run release --preRelease=beta --ci --'hooks.after:bump="pnpm run pack:beta"'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and package
+        run: pnpm run pack:beta
+      - uses: actions/upload-artifact@v3
+        with:
+          path: chrome-extension.zip
       - name: Release beta
-        uses: ./.github/actions/release-beta
+        uses: ./.github/actions/notify-release
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ vars.SLACK_CHANNEL_ID }}

@@ -35,7 +35,7 @@ const run = async () => {
       file: EXTENSION_ZIP_NAME,
       filename: `chrome-extension-${version}.zip`,
       initial_comment: [
-        `✨ *New release available (\`v${version}\`)*`,
+        `✨ *New build available (\`v${version}\`)*`,
         COMMIT_MESSAGE &&
           COMMIT_SHA &&
           `> ${COMMIT_MESSAGE} (<https://github.com/monarchmoney/mint-export-extension/commit/${COMMIT_SHA}|${COMMIT_SHA.slice(
