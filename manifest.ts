@@ -5,7 +5,7 @@ import packageJson from './package.json';
  */
 const manifest: chrome.runtime.ManifestV3 = {
   manifest_version: 3,
-  name: 'Mint Data Exporter, by Monarch',
+  name: 'Mint Data Exporter, by Monarch Money',
   version: packageJson.version,
   description: packageJson.description,
   permissions: ['storage', 'activeTab', 'scripting', 'downloads'],

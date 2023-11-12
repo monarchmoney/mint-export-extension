@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "after:bump": "pnpm run pack"
+  },
+  "git": {
+    "requireUpstream": false,
+    "commitMessage": "Release ${version} [skip ci]"
+  },
+  "github": {
+    "release": true,
+    "releaseName": "${version}",
+    "assets": ["chrome-extension.zip"],
+    "draft": true
+  },
+  "npm": {
+    "publish": false
+  }
+}

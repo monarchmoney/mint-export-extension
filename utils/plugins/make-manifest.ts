@@ -25,7 +25,6 @@ export default function makeManifest(
     // https://developer.chrome.com/docs/extensions/migrating/publish-mv3/
     if (isBetaVersion) {
       manifest.name += ' BETA';
-      manifest.version += process.env.GITHUB_RUN_NUMBER ? `.${process.env.GITHUB_RUN_NUMBER}` : '';
       manifest.description += '\nTHIS EXTENSION IS FOR BETA TESTING';
 
       manifest.action.default_icon = 'icon-beta-34.png';

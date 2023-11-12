@@ -1,9 +1,16 @@
 name: Build and release to Chrome Web Store
 
 on:
-  push:
-    tags:
-      - v*
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Release type
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
 
 jobs:
   build:
@@ -35,8 +42,7 @@ jobs:
         run: |
           pnpm install
           pnpm add -g chrome-webstore-upload-cli
-      - name: Build and zip extension
-        run: pnpm build && zip -r chrome-extension.zip dist
+          pnpm run release ${{ github.event.inputs.release_type }}
       - name: Upload to Chrome Web Store
         run: |
           chrome-webstore-upload upload \

@@ -9,14 +9,17 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  build_and_release:
     runs-on: ubuntu-latest
     env:
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       VITE_COMMIT_SHA: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
         with:
           run_install: false
@@ -38,9 +41,9 @@ jobs:
             ${{ runner.os }}-pnpm-store-
       - name: Install dependencies
         run: pnpm install
-      - name: Build and package extension
-        run: pnpm build:beta && zip -r chrome-extension-beta.zip dist
-      - name: Upload extension to Slack
+      - name: Build, package, and release extension
+        run: pnpm run release --preRelease=beta --ci --'hooks.after:bump="pnpm run pack:beta"'
+      - name: Release beta
         uses: ./.github/actions/release-beta
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

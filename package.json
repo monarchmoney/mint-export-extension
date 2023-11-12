@@ -5,6 +5,8 @@
   "scripts": {
     "build": "tsc --noEmit && vite build",
     "build:beta": "tsc --noEmit && cross-env IS_BETA=1 vite build",
+    "pack": "pnpm build && zip -r chrome-extension.zip dist",
+    "pack:beta": "pnpm build:beta && zip -r chrome-extension.zip dist",
     "build:firefox": "tsc --noEmit && cross-env __FIREFOX__=true vite build",
     "build:watch": "cross-env __DEV__=true vite build -w --mode development",
     "build:firefox:watch": "cross-env __DEV__=true __FIREFOX__=true vite build -w --mode development",
@@ -17,7 +19,8 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "pnpm lint --fix",
     "prettier": "prettier . --write",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "release": "release-it"
   },
   "type": "module",
   "dependencies": {
@@ -72,6 +75,7 @@
     "npm-run-all": "^4.1.5",
     "prettier": "^3.0.3",
     "prettier-plugin-tailwindcss": "^0.5.6",
+    "release-it": "^17.0.0",
     "rollup": "2.79.1",
     "sass": "1.62.1",
     "ts-jest": "29.0.2",
