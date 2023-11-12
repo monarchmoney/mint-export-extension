@@ -20,7 +20,8 @@
     "lint:fix": "pnpm lint --fix",
     "prettier": "prettier . --write",
     "prepare": "husky install",
-    "release": "release-it"
+    "release": "release-it",
+    "release:beta": "pnpm release --preRelease=beta --'hooks.after:bump=\"pnpm run pack:beta\"'"
   },
   "type": "module",
   "dependencies": {
