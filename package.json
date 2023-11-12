@@ -1,5 +1,5 @@
 {
-  "name": "mint-data-exporter",
+  "name": "mint-export-extension",
   "version": "0.0.1",
   "description": "Browser extension to export your data from Mint. Built by the team at Monarch Money.",
   "scripts": {

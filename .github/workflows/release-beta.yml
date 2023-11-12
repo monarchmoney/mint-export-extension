@@ -41,6 +41,9 @@ jobs:
             ${{ runner.os }}-pnpm-store-
       - name: Install dependencies
         run: pnpm install
+      - run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
       - name: Build, package, and release extension
         run: pnpm run release --preRelease=beta --ci --'hooks.after:bump="pnpm run pack:beta"'
       - name: Release beta
