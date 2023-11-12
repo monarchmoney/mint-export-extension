@@ -40,7 +40,7 @@ Contributions are welcome! Please read our [contributing guidelines](CONTRIBUTIN
 ## Licensing Information
 This project is based on [chrome-extension-boilerplate-react-vite](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite) which is licensed under the MIT License (see `LICENSE`). Our modifications and additional code are licensed under the GNU General Public License (GPL), which is detailed in `LICENSE-GPL`.
 
-### Usage
+## Usage
 
 1. Install the extension (see above).
 2. Head to https://mint.intuit.com and log in to your Mint account.
