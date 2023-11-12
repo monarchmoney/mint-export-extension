@@ -47,7 +47,7 @@
     "@types/pluralize": "^0.0.33",
     "@types/react": "18.2.29",
     "@types/react-dom": "18.2.15",
-    "@types/ws": "^8.5.4",
+    "@types/ws": "^8.5.9",
     "@typescript-eslint/eslint-plugin": "^6.7.5",
     "@typescript-eslint/parser": "^6.7.5",
     "@vitejs/plugin-react": "2.2.0",
@@ -81,7 +81,7 @@
     "typescript": "4.9.5",
     "vite": "3.2.7",
     "vite-plugin-conditional-compiler": "^0.2.1",
-    "ws": "8.13.0"
+    "ws": "8.14.2"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
