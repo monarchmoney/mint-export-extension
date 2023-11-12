@@ -46,6 +46,8 @@ jobs:
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
       - name: Build, package, and release extension
         run: pnpm run release --preRelease=beta --ci --'hooks.after:bump="pnpm run pack:beta"'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Release beta
         uses: ./.github/actions/release-beta
         env:
