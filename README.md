@@ -34,5 +34,8 @@ Access the extension in the [Chrome Web Store](https://chromewebstore.google.com
 5. Enable developer mode
 6. Click on "Load unpacked" and select the `dist` folder
 
-# Licensing Information
+## Contributing
+Contributions are welcome! Please read our [contributing guidelines](CONTRIBUTING.md) for more information.
+
+## Licensing Information
 This project is based on [chrome-extension-boilerplate-react-vite](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite) which is licensed under the MIT License (see `LICENSE`). Our modifications and additional code are licensed under the GNU General Public License (GPL), which is detailed in `LICENSE-GPL`.
