@@ -1,4 +1,4 @@
-name: Build and Release
+name: Release stable
 
 on:
   workflow_dispatch:
@@ -8,9 +8,10 @@ on:
         required: true
         type: choice
         options:
-          - major
-          - minor
           - patch
+          - minor
+          - major
+        default: patch
 
 jobs:
   build:
@@ -38,13 +39,29 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
+      - run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
       - name: Install dependencies
         run: |
           pnpm install
-          pnpm run release ${{ github.event.inputs.release_type }}
+          pnpm install -g chrome-webstore-upload-cli
+      - name: Build and package
+        id: build_and_package
+        run: pnpm run release ${{ github.event.inputs.release_type }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check review status
+        id: check_review_status
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { run } = require('./utils/check-ext-status.cjs');
+            await run({ core });
       - name: Upload to Chrome Web Store
+        if: ${{ steps.build_and_package.outcome == 'success' && steps.check_review_status.outputs.status == 'no' }}
         run: |
-          pnpm run chrome-webstore-upload upload \
+          chrome-webstore-upload upload \
             --source chrome-extension.zip \
             --extension-id ${{ env.EXTENSION_ID }} \
             --client-id ${{ secrets.GOOGLE_CLIENT_ID }} \

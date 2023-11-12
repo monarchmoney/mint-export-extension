@@ -4,4 +4,4 @@ First of all, thank you for your interest in contributing to Mint Data Exporter!
 
 ### How to contribute
 
-WIP
+Coming soon.
