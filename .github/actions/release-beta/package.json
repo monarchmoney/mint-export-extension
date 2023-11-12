@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "version": "1.0.0",
+  "description": "Notify beta release on Slack",
+  "main": "dist/index.mjs",
+  "scripts": {
+    "build": "ncc --no-source-map-register -m -o dist build src/index.mjs"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@slack/web-api": "^6.9.1"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.1"
+  }
+}

@@ -1,0 +1,5 @@
+name: Send Beta Version to Slack
+description: This uploads the packed extension to a channel in Slack.
+runs:
+  using: "node20"
+  main: "dist/index.mjs"
