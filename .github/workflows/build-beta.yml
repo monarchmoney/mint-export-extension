@@ -48,6 +48,7 @@ jobs:
         run: pnpm run pack:beta
       - uses: actions/upload-artifact@v3
         with:
+          name: chrome-extension-beta-${{ github.sha }}
           path: chrome-extension.zip
       - name: Release beta
         uses: ./.github/actions/notify-release
