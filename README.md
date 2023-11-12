@@ -24,7 +24,7 @@
 ## Installation
 
 ### Chrome Web Store
-Access the extension in the [Chrome Web Store](https://chromewebstore.google.com/detail/doknkjpaacjheilodaibfpimamfgfhap/) and click on "Add to Chrome". It's that simple!
+[Coming soon]
 
 ### From Source
 1. Clone the repository
@@ -39,3 +39,31 @@ Contributions are welcome! Please read our [contributing guidelines](CONTRIBUTIN
 
 ## Licensing Information
 This project is based on [chrome-extension-boilerplate-react-vite](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite) which is licensed under the MIT License (see `LICENSE`). Our modifications and additional code are licensed under the GNU General Public License (GPL), which is detailed in `LICENSE-GPL`.
+
+### Usage
+
+1. Install the extension (see above).
+2. Head to https://mint.intuit.com and log in to your Mint account.
+3. Click the extension button to get started.
+
+## FAQ
+
+### What does this do?
+This is a Chrome extension that lets you export all of your data from Mint, since [Intuit has announced that Mint “will go away”](https://support.creditkarma.com/s/article/Intuit-Mint-and-Credit-Karma). You could use this if you want to move to another an alternative, like Monarch Money, or if you simply want to preserve your data history.
+
+### Why use this tool? Can’t I export things manually?
+
+You *could* export things manually instead, but as users have moved from Mint to Monarch, we’ve seen a lot of quirks with Mint’s exports. This tool helps address some of these quirks:
+
+- **Export more than 10,000 transactions.** By default, when exporting transactions, Mint will only export the first 10,000 transactions (this isn’t always clear, you’ll just end up with missing transactions in your export and may not notice). You could filter your transactions and do several exports, but that’s tedious. This tool will issue as many requests as possible, and then merge the results into one final file that should have ***all*** your transactions (not just 10,000).
+- **Export all individual account balances.** When exporting historical account balances from Mint, you can only export one account at a time. This tool will loop through all the accounts you select, and export each one, saving you the manual work of doing that repetitively for each account.
+- **Export daily balances for your accounts.** When exporting historical account balances, Mint will only export the monthly balance (unless you filter to within a given month). This tool will loop through and export daily balances if you specify that option.
+
+### Is this free?
+Yes.
+
+### Is it secure?
+This tool does everything locally. Your data is not sent anywhere. It will re-use an API key from a local, logged in session to mint.intuit.com. It won’t store anything remotely or send data anywhere else. All data downloaded will be stored locally for you so you can decide what you do with it.
+
+### Can I use this without Monarch Money?
+Absolutely! This tool simply exports all your data and saves them locally. It doesn’t send anything to Monarch Money and it doesn’t require you to have a Monarch Money account. You could later import those files to Monarch Money or to any other tool, but you don’t have to. We'd recommend downloading your data before Mint goes away even if you don't know what tool you will use next.
