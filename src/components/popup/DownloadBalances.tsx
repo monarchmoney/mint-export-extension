@@ -21,28 +21,48 @@ const DownloadTransactions = () => {
   const [status, setStatus] = useState(stateValue.downloadAccountBalanceHistoryStatus);
   const isSuccess = status === ResponseStatus.Success;
 
+  const [accountsOutcome, setAccountsOutcome] = useState({ successCount: 0, errorCount: 0 });
+
   useMessageListener(
     Action.DownloadBalancesProgress,
     ({ completedAccounts, totalAccounts, completePercentage }: any) =>
       setProgress({ completedAccounts, totalAccounts, completePercentage }),
   );
 
-  useMessageListener(Action.DownloadBalancesComplete, ({ outcome }: { outcome: ResponseStatus }) =>
-    setStatus(outcome),
+  useMessageListener(
+    Action.DownloadBalancesComplete,
+    ({
+      outcome,
+      successCount,
+      errorCount,
+    }: {
+      outcome: ResponseStatus;
+      successCount: number;
+      errorCount: number;
+    }) => {
+      setStatus(outcome);
+      setAccountsOutcome({ successCount, errorCount });
+    },
   );
 
   const content = useMemo(() => {
     const { totalAccountsCount = 0 } = stateValue;
     const { totalAccounts, completedAccounts, completePercentage } = progress;
+    const { successCount, errorCount } = accountsOutcome;
 
     if (isSuccess) {
       return (
         <div className="flex flex-col gap-3">
           <Text type="header">Download complete!</Text>
           <Text className="font-normal">
-            Balance history for {totalAccountsCount} {pluralize('account', totalAccountsCount)}{' '}
-            downloaded to your computer.
+            Balance history for {successCount} {pluralize('account', successCount)} downloaded to
+            your computer.
           </Text>
+          {errorCount > 0 && (
+            <Text className="font-normal">
+              {pluralize('account', errorCount, true)} failed to download.
+            </Text>
+          )}
           <DefaultButton href="https://help.monarchmoney.com/hc/en-us/articles/4411877901972-Move-data-over-from-Mint-to-Monarch">
             Import into Monarch
           </DefaultButton>
@@ -69,7 +89,7 @@ const DownloadTransactions = () => {
     } else {
       return <Text>Getting your balance information...</Text>;
     }
-  }, [isSuccess, stateValue, progress]);
+  }, [isSuccess, stateValue, progress, accountsOutcome]);
 
   if (status === ResponseStatus.Error) {
     return <ErrorBoundary>Sorry, there was an error downloading your balances</ErrorBoundary>;

@@ -40,3 +40,8 @@ export const resolveSequential = async <T>(requests: (() => Promise<T>)[]): Prom
 
   return results;
 };
+
+export const withDefaultOnError =
+  <T>(defaultValue: T) =>
+  (promise: Promise<T>): Promise<T> =>
+    promise.catch(() => defaultValue);
