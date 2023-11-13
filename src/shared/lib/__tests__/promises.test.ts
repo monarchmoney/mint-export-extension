@@ -1,5 +1,5 @@
 import delay from '@root/src/shared/lib/delay';
-import { withRateLimit } from '@root/src/shared/lib/promises';
+import { withDefaultOnError, withRateLimit } from '@root/src/shared/lib/promises';
 
 describe('withRateLimit', () => {
   it('spaces out requests', async () => {
@@ -13,5 +13,19 @@ describe('withRateLimit', () => {
     const endTime = new Date().getTime();
 
     expect(endTime - startTime).toBeGreaterThan(1000);
+  });
+});
+
+describe('withDefaultOnError', () => {
+  it('returns default value when promise rejects', async () => {
+    const func = async () => {
+      await delay(100);
+      throw new Error();
+
+      return 'test';
+    };
+
+    const result = await withDefaultOnError('errored')(func());
+    expect(result).toEqual('errored');
   });
 });

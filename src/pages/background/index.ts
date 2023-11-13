@@ -165,9 +165,12 @@ const handleDownloadAllAccountBalances = async () => {
       onProgress: throttledSendDownloadBalancesProgress,
     });
 
+    const successAccounts = balancesByAccount.filter(({ balances }) => balances.length > 0);
+    const errorAccounts = balancesByAccount.filter(({ balances }) => balances.length === 0);
+
     // combine CSV for each account into one zip file
     const zip = new JSZip();
-    balancesByAccount.forEach(({ accountName, balances }) => {
+    successAccounts.forEach(({ accountName, balances }) => {
       zip.file(`${accountName}.csv`, formatBalancesAsCSV(balances, accountName));
     });
 
@@ -182,6 +185,8 @@ const handleDownloadAllAccountBalances = async () => {
       action: Action.DownloadBalancesComplete,
       payload: {
         outcome: ResponseStatus.Success,
+        successCount: successAccounts.length,
+        errorCount: errorAccounts.length,
       },
     });
   } catch (e) {
