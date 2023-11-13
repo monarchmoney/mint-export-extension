@@ -27,7 +27,10 @@
 https://chromewebstore.google.com/detail/mint-data-exporter-by-mon/doknkjpaacjheilodaibfpimamfgfhap?hl=en&pli=1
 
 ### Chrome Web Extension (unpacked)
-1. [Download the latest release](https://github.com/monarchmoney/mint-export-extension/releases/latest/download/chrome-extension.zip)
+1. [Download the latest release zip](https://github.com/monarchmoney/mint-export-extension/releases/latest/download/chrome-extension.zip) and unpack it
+2. Open Chrome and navigate to `chrome://extensions`
+3. Enable developer mode
+4. Click on "Load unpacked" and select the folder you unpacked the zip to
 
 ### From Source
 
