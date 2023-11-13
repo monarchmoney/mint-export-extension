@@ -57,7 +57,7 @@ You *could* export things manually instead, but as users have moved from Mint to
 
 - **Export more than 10,000 transactions.** By default, when exporting transactions, Mint will only export the first 10,000 transactions (this isn’t always clear, you’ll just end up with missing transactions in your export and may not notice). You could filter your transactions and do several exports, but that’s tedious. This tool will issue as many requests as possible, and then merge the results into one final file that should have ***all*** your transactions (not just 10,000).
 - **Export all individual account balances.** When exporting historical account balances from Mint, you can only export one account at a time. This tool will loop through all the accounts you select, and export each one, saving you the manual work of doing that repetitively for each account.
-- **Export daily balances for your accounts.** When exporting historical account balances, Mint will only export the monthly balance (unless you filter to within a given month). This tool will loop through and export daily balances if you specify that option.
+- **Export daily balances for your accounts.** When exporting historical account balances, Mint will only export the monthly balance (unless you filter to within a given month). This tool will loop through and export daily balances.
 
 ### Is this free?
 Yes.
@@ -67,3 +67,6 @@ This tool does everything locally. Your data is not sent anywhere. It will re-us
 
 ### Can I use this without Monarch Money?
 Absolutely! This tool simply exports all your data and saves them locally. It doesn’t send anything to Monarch Money and it doesn’t require you to have a Monarch Money account. You could later import those files to Monarch Money or to any other tool, but you don’t have to. We'd recommend downloading your data before Mint goes away even if you don't know what tool you will use next.
+
+### Can I use this _with_ Monarch Money?
+Yes! Check [this guide](https://help.monarchmoney.com/hc/en-us/articles/4411877901972-Move-data-over-from-Mint-to-Monarch).
