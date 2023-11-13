@@ -18,6 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EXTENSION_ID: ${{ vars.EXTENSION_ID }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
     steps:
       - uses: actions/checkout@v3
       - uses: pnpm/action-setup@v2
