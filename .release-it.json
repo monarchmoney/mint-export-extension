@@ -4,7 +4,7 @@
   },
   "git": {
     "requireUpstream": false,
-    "commitMessage": "Release ${version} [skip ci]"
+    "commitMessage": "Release v${version} [skip ci]"
   },
   "github": {
     "release": true,

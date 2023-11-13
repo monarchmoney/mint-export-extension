@@ -38,7 +38,10 @@ const run = async () => {
         `✨ *New build available (\`v${version}\`)*`,
         COMMIT_MESSAGE &&
           COMMIT_SHA &&
-          `> ${COMMIT_MESSAGE} (<https://github.com/monarchmoney/mint-export-extension/commit/${COMMIT_SHA}|${COMMIT_SHA.slice(
+          `> ${COMMIT_MESSAGE.replace(
+            '\n\n',
+            '\n',
+          )} (<https://github.com/monarchmoney/mint-export-extension/commit/${COMMIT_SHA}|${COMMIT_SHA.slice(
             0,
             7,
           )}>)`,
