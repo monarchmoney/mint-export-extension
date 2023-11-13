@@ -1,20 +1,17 @@
-import { useEffect, useState, useMemo } from 'react';
-import apiKeyStorage from '@src/shared/storages/apiKeyStorage';
-import withSuspense from '@src/shared/hoc/withSuspense';
-import withErrorBoundary from '@src/shared/hoc/withErrorBoundary';
-import { Action, useMessageSender } from '@src/shared/hooks/useMessage';
-import { getUserData } from '@src/shared/lib/auth';
-import { ErrorCode } from '@src/shared/constants/error';
-import PopupContainer from '@src/components/popup/PopupContainer';
+import ErrorBoundary from '@root/src/components/ErrorBoundary';
+import Text from '@root/src/components/Text';
 import DefaultButton from '@root/src/components/button/DefaultButton';
 import PopupContext from '@root/src/pages/popup/context';
-import Text from '@root/src/components/Text';
 import stateStorage from '@root/src/shared/storages/stateStorage';
-import ErrorBoundary from '@root/src/components/ErrorBoundary';
+import PopupContainer from '@src/components/popup/PopupContainer';
+import { ErrorCode } from '@src/shared/constants/error';
+import withErrorBoundary from '@src/shared/hoc/withErrorBoundary';
+import withSuspense from '@src/shared/hoc/withSuspense';
+import { Action, useMessageSender } from '@src/shared/hooks/useMessage';
+import { getUserData } from '@src/shared/lib/auth';
+import apiKeyStorage from '@src/shared/storages/apiKeyStorage';
+import { useEffect, useMemo, useState } from 'react';
 
-// #v-ifdef VITE_SENTRY_DSN
-// We don't want to track any user data, so we only initialize Sentry in development
-// (it's where we have VITE_SENTRY_DSN defined)
 import * as Sentry from '@sentry/react';
 
 Sentry.init({
@@ -23,7 +20,6 @@ Sentry.init({
   release: import.meta.env.VITE_COMMIT_SHA,
   tracesSampleRate: 1.0,
 });
-// #v-endif
 
 export enum ResponseStatus {
   RequireAuth = 'require_auth',
