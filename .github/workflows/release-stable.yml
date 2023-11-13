@@ -33,6 +33,8 @@ jobs:
       GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v2
         with:
           run_install: false
@@ -61,10 +63,10 @@ jobs:
           pnpm install -g chrome-webstore-upload-cli
       - name: Build and package
         id: build_and_package
-        run: pnpm run release ${{ github.event.inputs.release_type }} --ci $SKIP_RELEASE_ARG
+        run: pnpm run release ${{ github.event.inputs.release_type }} --ci $SKIP_RELEASE_ARGS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SKIP_RELEASE_ARG: ${{ github.event.inputs.skip_release == 'true' && '--no-npm' || '' }}
+          SKIP_RELEASE_ARGS: ${{ github.event.inputs.skip_release == 'true' && '--no-git --no-github --no-npm' || '' }}
       - name: Upload to Chrome Web Store
         if: ${{ steps.build_and_package.outcome == 'success' && github.event.inputs.upload_to_chrome_web_store == 'true' }}
         run: |
