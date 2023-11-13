@@ -24,7 +24,7 @@ on:
         default: false
 
 jobs:
-  build:
+  build_and_release:
     runs-on: ubuntu-latest
     env:
       EXTENSION_ID: ${{ vars.EXTENSION_ID }}
