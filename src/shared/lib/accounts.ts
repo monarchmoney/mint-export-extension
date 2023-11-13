@@ -25,6 +25,14 @@ type TrendsResponse = {
   // there's more here...
 };
 
+export type BalanceHistoryProgressCallback = (progress: {
+  completedAccounts: number;
+  totalAccounts: number;
+  completePercentage: number;
+}) => void | Promise<void>;
+
+export type BalanceHistoryCallbackProgress = Parameters<BalanceHistoryProgressCallback>[0];
+
 type ProgressCallback = (progress: { complete: number; total: number }) => void | Promise<void>;
 
 /**
@@ -161,11 +169,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
   onProgress,
   overrideApiKey,
 }: {
-  onProgress?: (progress: {
-    completedAccounts: number;
-    totalAccounts: number;
-    completePercentage: number;
-  }) => void | Promise<void>;
+  onProgress?: BalanceHistoryProgressCallback;
   overrideApiKey?: string;
 }) => {
   const accounts = await withRetry(() => fetchAccounts({ overrideApiKey }));

@@ -6,17 +6,19 @@ import DefaultButton from '@root/src/components/button/DefaultButton';
 import { ResponseStatus } from '@root/src/pages/popup/Popup';
 import { Action, useMessageListener } from '@root/src/shared/hooks/useMessage';
 import useStorage from '@root/src/shared/hooks/useStorage';
+import { BalanceHistoryCallbackProgress } from '@root/src/shared/lib/accounts';
+import balancesStorage from '@root/src/shared/storages/balanceStorage';
 import stateStorage from '@root/src/shared/storages/stateStorage';
 import pluralize from 'pluralize';
 import { useMemo, useState } from 'react';
 
-const DownloadTransactions = () => {
+const DownloadBalances = () => {
   const stateValue = useStorage(stateStorage);
-  const [progress, setProgress] = useState({
-    totalAccounts: 0,
-    completedAccounts: 0,
-    completePercentage: 0,
-  });
+  const balanceStateValue = useStorage(balancesStorage);
+
+  const [progress, setProgress] = useState<BalanceHistoryCallbackProgress>(
+    balanceStateValue.progress,
+  );
 
   const [status, setStatus] = useState(stateValue.downloadAccountBalanceHistoryStatus);
   const isSuccess = status === ResponseStatus.Success;
@@ -25,7 +27,7 @@ const DownloadTransactions = () => {
 
   useMessageListener(
     Action.DownloadBalancesProgress,
-    ({ completedAccounts, totalAccounts, completePercentage }: any) =>
+    ({ completedAccounts, totalAccounts, completePercentage }: BalanceHistoryCallbackProgress) =>
       setProgress({ completedAccounts, totalAccounts, completePercentage }),
   );
 
@@ -104,4 +106,4 @@ const DownloadTransactions = () => {
   );
 };
 
-export default DownloadTransactions;
+export default DownloadBalances;

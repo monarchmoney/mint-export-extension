@@ -4,9 +4,11 @@ import { Action } from '@root/src/shared/hooks/useMessage';
 import {
   fetchDailyBalancesForAllAccounts,
   formatBalancesAsCSV,
+  BalanceHistoryCallbackProgress,
 } from '@root/src/shared/lib/accounts';
 import { throttle } from '@root/src/shared/lib/events';
 import stateStorage from '@root/src/shared/storages/stateStorage';
+import balancesStorage, { BalanceHistoryDownloadStatus } from '@src/shared/storages/balanceStorage';
 import {
   concatenateCSVPages,
   fetchAllDownloadTransactionPages,
@@ -26,7 +28,6 @@ Sentry.WINDOW.document = {
 };
 
 Sentry.init({
-  debug: import.meta.env.DEV,
   dsn: import.meta.env.VITE_SENTRY_DSN,
   release: import.meta.env.VITE_COMMIT_SHA,
   environment: import.meta.env.MODE,
@@ -181,6 +182,12 @@ const handleDownloadAllAccountBalances = async () => {
       filename: 'mint-balances.zip',
     });
 
+    await balancesStorage.patch({
+      status: BalanceHistoryDownloadStatus.Success,
+      successCount: successAccounts.length,
+      errorCount: errorAccounts.length,
+    });
+
     chrome.runtime.sendMessage({
       action: Action.DownloadBalancesComplete,
       payload: {
@@ -189,9 +196,13 @@ const handleDownloadAllAccountBalances = async () => {
         errorCount: errorAccounts.length,
       },
     });
+
+    await stateStorage.patch({ currentPage: undefined });
   } catch (e) {
-    console.error(e);
-    console.log(JSON.stringify(e));
+    Sentry.captureException(e);
+
+    await balancesStorage.patch({ status: BalanceHistoryDownloadStatus.Error });
+
     chrome.runtime.sendMessage({
       action: Action.DownloadBalancesComplete,
       payload: {
@@ -201,8 +212,17 @@ const handleDownloadAllAccountBalances = async () => {
   }
 };
 
-const sendDownloadBalancesProgress = (payload) =>
-  chrome.runtime.sendMessage({
-    action: Action.DownloadBalancesProgress,
-    payload,
-  });
+/**
+ * Updates both the state storage and sends a message with the current progress,
+ * so the popup can update the UI and we have a state to restore from if the
+ * popup is closed.
+ */
+const sendDownloadBalancesProgress = async (payload: BalanceHistoryCallbackProgress) =>
+  await Promise.all([
+    () => balancesStorage.patch({ progress: payload }),
+    () =>
+      chrome.runtime.sendMessage({
+        action: Action.DownloadBalancesProgress,
+        payload,
+      }),
+  ]);
