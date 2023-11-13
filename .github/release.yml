@@ -3,6 +3,7 @@ changelog:
   exclude:
     labels:
       - meta
+      - dependencies
   categories:
     - title: New features
       labels:
