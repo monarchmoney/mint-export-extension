@@ -24,7 +24,7 @@
 ## Installation
 
 ### Chrome Web Store
-[Coming soon]
+https://chromewebstore.google.com/detail/mint-data-exporter-by-mon/doknkjpaacjheilodaibfpimamfgfhap?hl=en&pli=1
 
 ### From Source
 1. Clone the repository
