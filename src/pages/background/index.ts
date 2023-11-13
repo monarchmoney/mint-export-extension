@@ -33,6 +33,13 @@ Sentry.init({
   integrations: [new Sentry.BrowserTracing()],
   tracesSampleRate: 1.0,
   ignoreErrors: [/ResizeObserver/, 'ResizeObserver loop limit exceeded', 'Network request failed'],
+  beforeSend(event) {
+    if (event.user) {
+      // Do not send any user data to Sentry
+      delete event.user;
+    }
+    return event;
+  },
 });
 
 reloadOnUpdate('pages/background');

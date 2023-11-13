@@ -19,6 +19,13 @@ Sentry.init({
   environment: import.meta.env.MODE,
   release: import.meta.env.VITE_COMMIT_SHA,
   tracesSampleRate: 1.0,
+  beforeSend(event) {
+    if (event.user) {
+      // Do not send any user data to Sentry
+      delete event.user;
+    }
+    return event;
+  },
 });
 
 export enum ResponseStatus {
