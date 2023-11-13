@@ -10,6 +10,7 @@
     "release": true,
     "releaseName": "v${version}",
     "assets": ["chrome-extension.zip"],
+    "autoGenerate": true,
     "draft": true
   },
   "npm": {
