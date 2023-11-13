@@ -1,4 +1,4 @@
-name: Update Assignees
+name: Update assignees
 
 on:
   pull_request:

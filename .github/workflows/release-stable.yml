@@ -12,6 +12,16 @@ on:
           - minor
           - major
         default: patch
+      skip_release:
+        description: Skip release
+        required: true
+        type: boolean
+        default: false
+      upload_to_chrome_web_store:
+        description: Upload to Chrome Web Store
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -51,18 +61,12 @@ jobs:
           pnpm install -g chrome-webstore-upload-cli
       - name: Build and package
         id: build_and_package
-        run: pnpm run release ${{ github.event.inputs.release_type }}
+        run: pnpm run release ${{ github.event.inputs.release_type }} --ci $SKIP_RELEASE_ARG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check review status
-        id: check_review_status
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { run } = require('./utils/check-ext-status.cjs');
-            await run({ core });
+          SKIP_RELEASE_ARG: ${{ github.event.inputs.skip_release == 'true' && '--no-npm' || '' }}
       - name: Upload to Chrome Web Store
-        if: ${{ steps.build_and_package.outcome == 'success' && steps.check_review_status.outputs.status == 'no' }}
+        if: ${{ steps.build_and_package.outcome == 'success' && github.event.inputs.upload_to_chrome_web_store == 'true' }}
         run: |
           chrome-webstore-upload upload \
             --source chrome-extension.zip \
