@@ -8,7 +8,11 @@ import {
 } from '@root/src/shared/lib/constants';
 import { formatCSV } from '@root/src/shared/lib/csv';
 import { withRetry } from '@root/src/shared/lib/retry';
-import { resolveSequential, withRateLimit } from '@root/src/shared/lib/promises';
+import {
+  resolveSequential,
+  withDefaultOnError,
+  withRateLimit,
+} from '@root/src/shared/lib/promises';
 
 type TrendEntry = {
   amount: number;
@@ -72,9 +76,15 @@ const fetchMonthlyIntervalsForAccountHistory = async ({
   overrideApiKey?: string;
 }) => {
   // fetch monthly balances so we can get start date
-  const { balancesByDate: monthlyBalances, reportType } = await withRetry(() =>
+  const balanceInfo = await withRetry(() =>
     fetchMonthlyBalancesForAccount({ accountId, overrideApiKey }),
   );
+
+  if (!balanceInfo) {
+    throw new Error('Unable to fetch account history.');
+  }
+
+  const { balancesByDate: monthlyBalances, reportType } = balanceInfo;
 
   const startDate = monthlyBalances[0]?.date;
 
@@ -109,6 +119,10 @@ const fetchDailyBalancesForMonthIntervals = async ({
   overrideApiKey?: string;
   onProgress?: ProgressCallback;
 }) => {
+  if (!reportType) {
+    throw new Error('Invalid report type.');
+  }
+
   const counter = {
     count: 0,
   };
@@ -159,10 +173,12 @@ export const fetchDailyBalancesForAllAccounts = async ({
   // first, fetch the range of months we need to fetch for each account
   const accountsWithMonthsToFetch = await Promise.all(
     accounts.map(async ({ id: accountId, name: accountName }) => {
-      const { months, reportType } = await fetchMonthlyIntervalsForAccountHistory({
-        accountId,
-        overrideApiKey,
-      });
+      const { months, reportType } = await withDefaultOnError({ months: [], reportType: '' })(
+        fetchMonthlyIntervalsForAccountHistory({
+          accountId,
+          overrideApiKey,
+        }),
+      );
       return { months, reportType, accountId, accountName };
     }),
   );
@@ -177,32 +193,38 @@ export const fetchDailyBalancesForAllAccounts = async ({
   const balancesByAccount = await resolveSequential(
     accountsWithMonthsToFetch.map(
       ({ accountId, accountName, months, reportType }, accountIndex) =>
-        async () => ({
-          balances: await fetchDailyBalancesForMonthIntervals({
-            accountId,
-            months,
-            reportType,
-            overrideApiKey,
-            onProgress: ({ complete }) => {
-              // this is the progress handler for *each* account, so we need to sum up the results before calling onProgress
+        async () => {
+          const balances = await withDefaultOnError<TrendEntry[]>([])(
+            fetchDailyBalancesForMonthIntervals({
+              accountId,
+              months,
+              reportType,
+              overrideApiKey,
+              onProgress: ({ complete }) => {
+                // this is the progress handler for *each* account, so we need to sum up the results before calling onProgress
 
-              const previousAccounts = accountsWithMonthsToFetch.slice(0, accountIndex);
-              // since accounts are fetched sequentially, we can assume that all previous accounts have completed all their requests
-              const previousCompletedRequestCount = previousAccounts.reduce(
-                (acc, { months }) => acc + months.length,
-                0,
-              );
-              const completedRequests = previousCompletedRequestCount + complete;
+                const previousAccounts = accountsWithMonthsToFetch.slice(0, accountIndex);
+                // since accounts are fetched sequentially, we can assume that all previous accounts have completed all their requests
+                const previousCompletedRequestCount = previousAccounts.reduce(
+                  (acc, { months }) => acc + months.length,
+                  0,
+                );
+                const completedRequests = previousCompletedRequestCount + complete;
 
-              onProgress?.({
-                completedAccounts: accountIndex,
-                totalAccounts: accounts.length,
-                completePercentage: completedRequests / totalRequestsToFetch,
-              });
-            },
-          }),
-          accountName,
-        }),
+                onProgress?.({
+                  completedAccounts: accountIndex,
+                  totalAccounts: accounts.length,
+                  completePercentage: completedRequests / totalRequestsToFetch,
+                });
+              },
+            }),
+          );
+
+          return {
+            balances,
+            accountName,
+          };
+        },
     ),
   );
 
