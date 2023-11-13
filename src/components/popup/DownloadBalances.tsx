@@ -3,25 +3,24 @@ import Progress from '@root/src/components/Progress';
 import SpinnerWithText from '@root/src/components/SpinnerWithText';
 import Text from '@root/src/components/Text';
 import DefaultButton from '@root/src/components/button/DefaultButton';
-import { ResponseStatus } from '@root/src/pages/popup/Popup';
 import { Action, useMessageListener } from '@root/src/shared/hooks/useMessage';
 import useStorage from '@root/src/shared/hooks/useStorage';
 import { BalanceHistoryCallbackProgress } from '@root/src/shared/lib/accounts';
-import balancesStorage from '@root/src/shared/storages/balanceStorage';
-import stateStorage from '@root/src/shared/storages/stateStorage';
+import balancesStorage, {
+  BalanceHistoryDownloadStatus,
+} from '@root/src/shared/storages/balanceStorage';
 import pluralize from 'pluralize';
 import { useMemo, useState } from 'react';
 
 const DownloadBalances = () => {
-  const stateValue = useStorage(stateStorage);
   const balanceStateValue = useStorage(balancesStorage);
 
   const [progress, setProgress] = useState<BalanceHistoryCallbackProgress>(
     balanceStateValue.progress,
   );
 
-  const [status, setStatus] = useState(stateValue.downloadAccountBalanceHistoryStatus);
-  const isSuccess = status === ResponseStatus.Success;
+  const [status, setStatus] = useState(balanceStateValue.status);
+  const isSuccess = status === BalanceHistoryDownloadStatus.Success;
 
   const [accountsOutcome, setAccountsOutcome] = useState({ successCount: 0, errorCount: 0 });
 
@@ -38,7 +37,7 @@ const DownloadBalances = () => {
       successCount,
       errorCount,
     }: {
-      outcome: ResponseStatus;
+      outcome: BalanceHistoryDownloadStatus;
       successCount: number;
       errorCount: number;
     }) => {
@@ -48,7 +47,6 @@ const DownloadBalances = () => {
   );
 
   const content = useMemo(() => {
-    const { totalAccountsCount = 0 } = stateValue;
     const { totalAccounts, completedAccounts, completePercentage } = progress;
     const { successCount, errorCount } = accountsOutcome;
 
@@ -70,12 +68,12 @@ const DownloadBalances = () => {
           </DefaultButton>
         </div>
       );
-    } else if (totalAccountsCount) {
+    } else if (totalAccounts) {
       return (
         <div className="flex flex-col gap-3">
           <Text className="text-current text-textLight">
-            Downloading balance history for {totalAccountsCount}{' '}
-            {pluralize('account', totalAccountsCount)}. This may take a minute.
+            Downloading balance history for {totalAccounts} {pluralize('account', totalAccounts)}.
+            This may take a minute.
           </Text>
           {totalAccounts > 0 && completePercentage > 0 && (
             <div className="flex flex-col gap-3">
@@ -91,9 +89,9 @@ const DownloadBalances = () => {
     } else {
       return <Text>Getting your balance information...</Text>;
     }
-  }, [isSuccess, stateValue, progress, accountsOutcome]);
+  }, [isSuccess, progress, accountsOutcome]);
 
-  if (status === ResponseStatus.Error) {
+  if (status === BalanceHistoryDownloadStatus.Error) {
     return <ErrorBoundary>Sorry, there was an error downloading your balances</ErrorBoundary>;
   }
 

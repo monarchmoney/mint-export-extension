@@ -13,6 +13,9 @@ import Footer from '@root/src/components/Footer';
 import OtherResources from '@root/src/components/popup/OtherResources';
 import { fetchAccounts } from '@root/src/shared/lib/accounts';
 import DownloadBalances from '@root/src/components/popup/DownloadBalances';
+import balancesStorage, {
+  BalanceHistoryDownloadStatus,
+} from '@root/src/shared/storages/balanceStorage';
 
 interface Page {
   title: string;
@@ -54,14 +57,22 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
 
   const onDownloadAccountBalanceHistory = useCallback(async () => {
     // Reset any previous state
-    await stateStorage.patch({
-      currentPage: 'downloadAccountBalanceHistory',
-      downloadAccountBalanceHistoryStatus: ResponseStatus.Loading,
-      totalAccountsCount: undefined,
-    });
+    await Promise.all([
+      () =>
+        stateStorage.patch({
+          currentPage: 'downloadAccountBalanceHistory',
+        }),
+      () =>
+        balancesStorage.patch({
+          status: BalanceHistoryDownloadStatus.Loading,
+          progress: { totalAccounts: 0, completedAccounts: 0, completePercentage: 0 },
+        }),
+    ]);
 
     const mintAccounts = await fetchAccounts({ offset: 0 });
-    await stateStorage.patch({ totalAccountsCount: mintAccounts.length });
+    await balancesStorage.patch({
+      progress: { totalAccounts: mintAccounts.length, completedAccounts: 0, completePercentage: 0 },
+    });
 
     // The result of this message is handled by the DownloadBalances component
     return sendMessage({ action: Action.DownloadAllAccountBalances });
