@@ -28,7 +28,7 @@ const run = async () => {
       return;
     }
 
-    const version = packageJson.version;
+    const version = `${packageJson.version}-beta.${process.env.GITHUB_RUN_NUMBER}`;
 
     await slack.files.uploadV2({
       channel_id: process.env.SLACK_CHANNEL_ID,
