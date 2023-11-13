@@ -7,7 +7,6 @@ import customDynamicImport from './utils/plugins/custom-dynamic-import';
 import addHmr from './utils/plugins/add-hmr';
 import watchRebuild from './utils/plugins/watch-rebuild';
 import manifest from './manifest';
-import ConditionalCompile from 'vite-plugin-conditional-compiler';
 
 const rootDir = resolve(__dirname);
 const srcDir = resolve(rootDir, 'src');
@@ -32,7 +31,6 @@ export default defineConfig({
     },
   },
   plugins: [
-    ConditionalCompile(),
     react(),
     makeManifest(manifest, {
       isDev,
@@ -41,8 +39,7 @@ export default defineConfig({
     customDynamicImport(),
     addHmr({ background: enableHmrInBackgroundScript, view: true }),
     watchRebuild(),
-    isProduction &&
-      process.env.SENTRY_DSN &&
+    process.env.SENTRY_DSN &&
       sentryVitePlugin({
         org: 'monarch',
         project: 'mint-data-exporter',

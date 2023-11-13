@@ -1,6 +1,11 @@
 import { ResponseStatus } from '@root/src/pages/popup/Popup';
 import { ErrorCode } from '@root/src/shared/constants/error';
 import { Action } from '@root/src/shared/hooks/useMessage';
+import {
+  fetchDailyBalancesForAllAccounts,
+  formatBalancesAsCSV,
+} from '@root/src/shared/lib/accounts';
+import { throttle } from '@root/src/shared/lib/events';
 import stateStorage from '@root/src/shared/storages/stateStorage';
 import {
   concatenateCSVPages,
@@ -8,23 +13,13 @@ import {
   fetchTransactionsTotalCount,
 } from '@src/shared/lib/transactions';
 import apiKeyStorage from '@src/shared/storages/apiKeyStorage';
-import reloadOnUpdate from 'virtual:reload-on-update-in-background-script';
-import {
-  fetchDailyBalancesForAllAccounts,
-  formatBalancesAsCSV,
-} from '@root/src/shared/lib/accounts';
 import JSZip from 'jszip';
+import reloadOnUpdate from 'virtual:reload-on-update-in-background-script';
 import 'webextension-polyfill';
-import { throttle } from '@root/src/shared/lib/events';
-
-// #v-ifdef VITE_SENTRY_DSN
-// We don't want to track any user data, so we only initialize Sentry in development
-// (it's where we have VITE_SENTRY_DSN defined)
 
 import * as Sentry from '@sentry/browser';
 
-// https://github.com/getsentry/sentry-javascript/issues/5289#issuecomment-1368705821
-// @ts-ignore - Just for local development
+// @ts-ignore - https://github.com/getsentry/sentry-javascript/issues/5289#issuecomment-1368705821
 Sentry.WINDOW.document = {
   visibilityState: 'hidden',
   addEventListener: () => {},
@@ -38,8 +33,14 @@ Sentry.init({
   integrations: [new Sentry.BrowserTracing()],
   tracesSampleRate: 1.0,
   ignoreErrors: [/ResizeObserver/, 'ResizeObserver loop limit exceeded', 'Network request failed'],
+  beforeSend(event) {
+    if (event.user) {
+      // Do not send any user data to Sentry
+      delete event.user;
+    }
+    return event;
+  },
 });
-// #v-endif
 
 reloadOnUpdate('pages/background');
 
@@ -60,14 +61,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // #v-ifdef VITE_SENTRY_DSN
   const transaction = Sentry.startTransaction({
     name: message.action,
     op: 'background',
   });
 
   Sentry.configureScope((scope) => scope.setSpan(transaction));
-  // #v-endif
 
   console.log(`Received message with action: ${message.action}`);
 
@@ -83,9 +82,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     throw new Error('Debug error');
   }
 
-  // #v-ifdef VITE_SENTRY_DSN
   transaction.finish();
-  // #v-endif
 
   return true; // indicates we will send a response asynchronously
 });
