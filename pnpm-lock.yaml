@@ -62,8 +62,8 @@ devDependencies:
     specifier: 0.0.224
     version: 0.0.224
   '@types/jest':
-    specifier: 29.0.3
-    version: 29.0.3
+    specifier: 29.5.8
+    version: 29.5.8
   '@types/luxon':
     specifier: 3.3.4
     version: 3.3.4
@@ -140,8 +140,8 @@ devDependencies:
     specifier: 3.0.0
     version: 3.0.0
   jest:
-    specifier: 29.0.3
-    version: 29.0.3(@types/node@18.15.11)(ts-node@10.9.1)
+    specifier: 29.7.0
+    version: 29.7.0(@types/node@18.15.11)(ts-node@10.9.1)
   jest-environment-jsdom:
     specifier: 29.5.0
     version: 29.5.0
@@ -168,7 +168,7 @@ devDependencies:
     version: 1.62.1
   ts-jest:
     specifier: 29.0.2
-    version: 29.0.2(@babel/core@7.23.2)(jest@29.0.3)(typescript@4.9.5)
+    version: 29.0.2(@babel/core@7.23.2)(jest@29.7.0)(typescript@4.9.5)
   ts-loader:
     specifier: 9.4.2
     version: 9.4.2(typescript@4.9.5)(webpack@5.89.0)
@@ -1464,8 +1464,8 @@ packages:
       '@types/istanbul-lib-report': 3.0.2
     dev: true
 
-  /@types/jest@29.0.3:
-    resolution: {integrity: sha512-F6ukyCTwbfsEX5F2YmVYmM5TcTHy1q9P5rWlRbrk56KyMh3v9xRGUO3aa8+SkvMi0SHXtASJv1283enXimC0Og==}
+  /@types/jest@29.5.8:
+    resolution: {integrity: sha512-fXEFTxMV2Co8ZF5aYFJv+YeA08RTYJfhtN5c9JSv/mFEMe+xxjufCb+PHL+bJcMs/ebPUsBu+UNTEz+ydXrR6g==}
     dependencies:
       expect: 29.7.0
       pretty-format: 29.7.0
@@ -5366,8 +5366,8 @@ packages:
       supports-color: 8.1.1
     dev: true
 
-  /jest@29.0.3(@types/node@18.15.11)(ts-node@10.9.1):
-    resolution: {integrity: sha512-ElgUtJBLgXM1E8L6K1RW1T96R897YY/3lRYqq9uVcPWtP2AAl/nQ16IYDh/FzQOOQ12VEuLdcPU83mbhG2C3PQ==}
+  /jest@29.7.0(@types/node@18.15.11)(ts-node@10.9.1):
+    resolution: {integrity: sha512-NIy3oAFp9shda19hy4HK0HRTWKtPJmGdnvywu01nOqNC2vZg+Z+fvJDxpMQA88eb2I9EcafcdjYgsDthnYTvGw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     hasBin: true
     peerDependencies:
@@ -7754,7 +7754,7 @@ packages:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
     dev: false
 
-  /ts-jest@29.0.2(@babel/core@7.23.2)(jest@29.0.3)(typescript@4.9.5):
+  /ts-jest@29.0.2(@babel/core@7.23.2)(jest@29.7.0)(typescript@4.9.5):
     resolution: {integrity: sha512-P03IUItnAjG6RkJXtjjD5pu0TryQFOwcb1YKmW63rO19V0UFqL3wiXZrmR5D7qYjI98btzIOAcYafLZ0GHAcQg==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     hasBin: true
@@ -7778,7 +7778,7 @@ packages:
       '@babel/core': 7.23.2
       bs-logger: 0.2.6
       fast-json-stable-stringify: 2.1.0
-      jest: 29.0.3(@types/node@18.15.11)(ts-node@10.9.1)
+      jest: 29.7.0(@types/node@18.15.11)(ts-node@10.9.1)
       jest-util: 29.7.0
       json5: 2.2.3
       lodash.memoize: 4.1.2
