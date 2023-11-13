@@ -26,7 +26,7 @@ Sentry.WINDOW.document = {
 };
 
 Sentry.init({
-  debug: true,
+  debug: import.meta.env.DEV,
   dsn: import.meta.env.VITE_SENTRY_DSN,
   release: import.meta.env.VITE_COMMIT_SHA,
   environment: import.meta.env.MODE,
