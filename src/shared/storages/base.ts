@@ -1,5 +1,3 @@
-const DEBUG = import.meta.env.VITE_DEBUG_STORAGE === '1';
-
 export enum StorageType {
   Local = 'local',
   Sync = 'sync',
@@ -62,11 +60,6 @@ export function createStorage<D>(
 
   const clear = async () => {
     await chrome.storage[storageType].remove(key);
-
-    if (DEBUG) {
-      console.log(`clear: Storage ${key} cleared`);
-    }
-
     cache = fallback;
     _emitChange();
   };
@@ -88,7 +81,7 @@ export function createStorage<D>(
   // This is called when the storage changes from the service worker
   chrome.storage.local.onChanged.addListener((changes) => {
     if (changes[key]) {
-      cache = changes[key].newValue;
+      cache = { ...cache, ...changes[key].newValue };
       _emitChange();
     }
   });

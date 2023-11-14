@@ -54,6 +54,8 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
   }, [sendMessage]);
 
   const onDownloadAccountBalanceHistory = useCallback(async () => {
+    await accountStorage.clear();
+
     await stateStorage.patch({
       currentPage: 'downloadBalances',
       downloadTransactionsStatus: undefined,

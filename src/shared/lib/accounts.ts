@@ -172,13 +172,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
   onProgress?: BalanceHistoryProgressCallback;
   overrideApiKey?: string;
 }) => {
-  const accounts = await withRetry(() =>
-    fetchAccounts({ overrideApiKey }).then(
-      (accounts) =>
-        // DEBUG: limit to one account
-        accounts.slice(0, 1) as typeof accounts,
-    ),
-  );
+  const accounts = await withRetry(() => fetchAccounts({ overrideApiKey }));
 
   // first, fetch the range of months we need to fetch for each account
   const accountsWithMonthsToFetch = await Promise.all(

@@ -83,6 +83,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 const handlePopupOpened = async (sendResponse: (args: unknown) => void) => {
   const apiKey = await apiKeyStorage.get();
 
+  await stateStorage.clear();
+
   if (apiKey) {
     sendResponse({ status: ResponseStatus.Success, apiKey });
   } else {
