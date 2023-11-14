@@ -71,16 +71,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   console.log(`Received message with action: ${message.action}`);
 
-  if (message.action === Action.PopupOpened) {
-    handlePopupOpened(sendResponse);
-  } else if (message.action === Action.GetMintApiKey) {
-    handleMintAuthentication(sendResponse);
-  } else if (message.action === Action.DownloadTransactions) {
-    handleTransactionsDownload(sendResponse);
-  } else if (message.action === Action.DownloadAllAccountBalances) {
-    handleDownloadAllAccountBalances();
-  } else if (message.action === Action.DebugThrowError) {
-    throw new Error('Debug error');
+  switch (message.action) {
+    case Action.PopupOpened:
+      handlePopupOpened(sendResponse);
+      break;
+    case Action.GetMintApiKey:
+      handleMintAuthentication(sendResponse);
+      break;
+    case Action.DownloadTransactions:
+      handleTransactionsDownload(sendResponse);
+      break;
+    case Action.DownloadAllAccountBalances:
+      handleDownloadAllAccountBalances();
+      break;
+    case Action.DebugThrowError:
+      throw new Error('Debug error');
+    default:
+      console.warn(`Unknown action: ${message.action}`);
+      break;
   }
 
   transaction.finish();
