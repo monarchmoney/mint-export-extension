@@ -29,6 +29,10 @@ export const makeMintApiRequest = async <T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      await apiKeyStorage.clear();
+    }
+
     throw new Error(`Request failed with status ${response.status}`);
   }
 

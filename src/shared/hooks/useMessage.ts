@@ -22,16 +22,22 @@ export const useMessageListener = <TPayload extends Record<string, unknown>>(
   const listenerRef = useRef<(message: Message, sender: unknown, sendResponse: unknown) => void>();
 
   useEffect(() => {
-    // Remove listener if it exists
     if (listenerRef.current) {
-      chrome.runtime.onMessage.removeListener(listenerRef.current);
+      return;
     }
 
     // Create a new listener
-    listenerRef.current = (message) => {
+    listenerRef.current = async (message) => {
       if (message.action === action) {
-        callback(message.payload as TPayload);
+        // eslint-disable-next-line no-prototype-builtins
+        if (callback.hasOwnProperty('then')) {
+          await callback(message.payload as TPayload);
+        } else {
+          callback(message.payload as TPayload);
+        }
       }
+
+      return true;
     };
 
     chrome.runtime.onMessage.addListener(listenerRef.current);

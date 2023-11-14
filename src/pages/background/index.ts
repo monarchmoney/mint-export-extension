@@ -4,9 +4,11 @@ import { Action } from '@root/src/shared/hooks/useMessage';
 import {
   fetchDailyBalancesForAllAccounts,
   formatBalancesAsCSV,
+  BalanceHistoryCallbackProgress,
 } from '@root/src/shared/lib/accounts';
 import { throttle } from '@root/src/shared/lib/events';
 import stateStorage from '@root/src/shared/storages/stateStorage';
+import accountStorage, { AccountsDownloadStatus } from '@src/shared/storages/accountStorage';
 import {
   concatenateCSVPages,
   fetchAllDownloadTransactionPages,
@@ -26,7 +28,6 @@ Sentry.WINDOW.document = {
 };
 
 Sentry.init({
-  debug: import.meta.env.DEV,
   dsn: import.meta.env.VITE_SENTRY_DSN,
   release: import.meta.env.VITE_COMMIT_SHA,
   environment: import.meta.env.MODE,
@@ -35,8 +36,10 @@ Sentry.init({
   ignoreErrors: [/ResizeObserver/, 'ResizeObserver loop limit exceeded', 'Network request failed'],
   beforeSend(event) {
     if (event.user) {
-      // Do not send any user data to Sentry
-      delete event.user;
+      // Do not send user data to Sentry
+      delete event.user.ip_address;
+      delete event.user.segment;
+      delete event.user.id;
     }
     return event;
   },
@@ -45,16 +48,6 @@ Sentry.init({
 reloadOnUpdate('pages/background');
 
 const THROTTLE_INTERVAL_MS = 200;
-
-declare global {
-  interface Window {
-    __shellInternal?: {
-      appExperience: {
-        appApiKey: string;
-      };
-    };
-  }
-}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.tab?.url.startsWith('chrome://')) {
@@ -68,8 +61,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   Sentry.configureScope((scope) => scope.setSpan(transaction));
 
-  console.log(`Received message with action: ${message.action}`);
-
   if (message.action === Action.PopupOpened) {
     handlePopupOpened(sendResponse);
   } else if (message.action === Action.GetMintApiKey) {
@@ -77,9 +68,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === Action.DownloadTransactions) {
     handleTransactionsDownload(sendResponse);
   } else if (message.action === Action.DownloadAllAccountBalances) {
-    handleDownloadAllAccountBalances();
+    handleDownloadAllAccountBalances(sendResponse);
   } else if (message.action === Action.DebugThrowError) {
     throw new Error('Debug error');
+  } else {
+    console.warn(`Unknown action: ${message.action}`);
   }
 
   transaction.finish();
@@ -89,6 +82,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 const handlePopupOpened = async (sendResponse: (args: unknown) => void) => {
   const apiKey = await apiKeyStorage.get();
+
+  await stateStorage.clear();
 
   if (apiKey) {
     sendResponse({ status: ResponseStatus.Success, apiKey });
@@ -151,10 +146,10 @@ const handleTransactionsDownload = async (sendResponse: (args: unknown) => void)
 };
 
 /**
- * Download all daily balances for all accounts. Since this is an operation that
- * may take a while, we will send progress updates to the popup.
+ * Download all daily balances for all account. Since this is an operation that
+ * may take a while, we will send progress updastes to the popup.
  */
-const handleDownloadAllAccountBalances = async () => {
+const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
   try {
     const throttledSendDownloadBalancesProgress = throttle(
       sendDownloadBalancesProgress,
@@ -181,28 +176,23 @@ const handleDownloadAllAccountBalances = async () => {
       filename: 'mint-balances.zip',
     });
 
-    chrome.runtime.sendMessage({
-      action: Action.DownloadBalancesComplete,
-      payload: {
-        outcome: ResponseStatus.Success,
-        successCount: successAccounts.length,
-        errorCount: errorAccounts.length,
-      },
+    await accountStorage.patch({
+      status: AccountsDownloadStatus.Success,
+      successCount: successAccounts.length,
+      errorCount: errorAccounts.length,
     });
   } catch (e) {
-    console.error(e);
-    console.log(JSON.stringify(e));
-    chrome.runtime.sendMessage({
-      action: Action.DownloadBalancesComplete,
-      payload: {
-        outcome: ResponseStatus.Error,
-      },
-    });
+    await accountStorage.patch({ status: AccountsDownloadStatus.Error });
+  } finally {
+    sendResponse();
   }
 };
 
-const sendDownloadBalancesProgress = (payload) =>
-  chrome.runtime.sendMessage({
-    action: Action.DownloadBalancesProgress,
-    payload,
-  });
+/**
+ * Updates both the state storage and sends a message with the current progress,
+ * so the popup can update the UI and we have a state to restore from if the
+ * popup is closed.
+ */
+const sendDownloadBalancesProgress = async (payload: BalanceHistoryCallbackProgress) => {
+  await accountStorage.patch({ progress: payload });
+};

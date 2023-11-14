@@ -21,8 +21,10 @@ Sentry.init({
   tracesSampleRate: 1.0,
   beforeSend(event) {
     if (event.user) {
-      // Do not send any user data to Sentry
-      delete event.user;
+      // Do not send user data to Sentry
+      delete event.user.ip_address;
+      delete event.user.segment;
+      delete event.user.id;
     }
     return event;
   },

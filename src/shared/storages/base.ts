@@ -43,11 +43,9 @@ export function createStorage<D>(
     if (typeof valueOrUpdate === 'function') {
       // eslint-disable-next-line no-prototype-builtins
       if (valueOrUpdate.hasOwnProperty('then')) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         cache = await valueOrUpdate(cache);
       } else {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         cache = valueOrUpdate(cache);
       }
@@ -58,13 +56,10 @@ export function createStorage<D>(
     _emitChange();
   };
 
-  const patch = async (value: Partial<D>) => {
-    await set((prev) => ({ ...prev, ...value }));
-  };
+  const patch = (value: Partial<D>) => set((prev) => ({ ...prev, ...value }));
 
   const clear = async () => {
     await chrome.storage[storageType].remove(key);
-    console.log(`Storage ${key} cleared`);
     cache = fallback;
     _emitChange();
   };
@@ -76,13 +71,19 @@ export function createStorage<D>(
     };
   };
 
-  const getSnapshot = () => {
-    return cache;
-  };
+  const getSnapshot = () => cache;
 
   _getDataFromStorage().then((data) => {
     cache = data;
     _emitChange();
+  });
+
+  // This is called when the storage changes from the service worker
+  chrome.storage.local.onChanged.addListener((changes) => {
+    if (changes[key]) {
+      cache = { ...cache, ...changes[key].newValue };
+      _emitChange();
+    }
   });
 
   return {
