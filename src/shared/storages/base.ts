@@ -85,6 +85,14 @@ export function createStorage<D>(
     _emitChange();
   });
 
+  // This is called when the storage changes from the service worker
+  chrome.storage.local.onChanged.addListener((changes) => {
+    if (changes[key]) {
+      cache = changes[key].newValue;
+      _emitChange();
+    }
+  });
+
   return {
     get: _getDataFromStorage,
     set,

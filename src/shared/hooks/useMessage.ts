@@ -22,9 +22,8 @@ export const useMessageListener = <TPayload extends Record<string, unknown>>(
   const listenerRef = useRef<(message: Message, sender: unknown, sendResponse: unknown) => void>();
 
   useEffect(() => {
-    // Remove listener if it exists
     if (listenerRef.current) {
-      chrome.runtime.onMessage.removeListener(listenerRef.current);
+      return;
     }
 
     // Create a new listener
@@ -37,6 +36,8 @@ export const useMessageListener = <TPayload extends Record<string, unknown>>(
           callback(message.payload as TPayload);
         }
       }
+
+      return true;
     };
 
     chrome.runtime.onMessage.addListener(listenerRef.current);

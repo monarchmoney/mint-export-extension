@@ -1,6 +1,7 @@
 import { Component, ComponentType, ReactElement } from 'react';
 import stateStorage from '@root/src/shared/storages/stateStorage';
 
+import * as Sentry from '@sentry/react';
 class ErrorBoundary extends Component<
   {
     children: ReactElement;
@@ -18,7 +19,7 @@ class ErrorBoundary extends Component<
 
   componentDidCatch(error, errorInfo) {
     stateStorage.clear();
-    console.error(error, errorInfo);
+    Sentry.captureException(error, { extra: errorInfo });
   }
 
   render() {

@@ -61,26 +61,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   Sentry.configureScope((scope) => scope.setSpan(transaction));
 
-  console.log(`Received message with action: ${message.action}`);
-
-  switch (message.action) {
-    case Action.PopupOpened:
-      handlePopupOpened(sendResponse);
-      break;
-    case Action.GetMintApiKey:
-      handleMintAuthentication(sendResponse);
-      break;
-    case Action.DownloadTransactions:
-      handleTransactionsDownload(sendResponse);
-      break;
-    case Action.DownloadAllAccountBalances:
-      handleDownloadAllAccountBalances();
-      break;
-    case Action.DebugThrowError:
-      throw new Error('Debug error');
-    default:
-      console.warn(`Unknown action: ${message.action}`);
-      break;
+  if (message.action === Action.PopupOpened) {
+    handlePopupOpened(sendResponse);
+  } else if (message.action === Action.GetMintApiKey) {
+    handleMintAuthentication(sendResponse);
+  } else if (message.action === Action.DownloadTransactions) {
+    handleTransactionsDownload(sendResponse);
+  } else if (message.action === Action.DownloadAllAccountBalances) {
+    handleDownloadAllAccountBalances(sendResponse);
+  } else if (message.action === Action.DebugThrowError) {
+    throw new Error('Debug error');
+  } else {
+    console.warn(`Unknown action: ${message.action}`);
   }
 
   transaction.finish();
@@ -90,18 +82,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 const handlePopupOpened = async (sendResponse: (args: unknown) => void) => {
   const apiKey = await apiKeyStorage.get();
-
-  const [accountStorageValue, stateStorageValue] = await Promise.all([
-    accountStorage.get(),
-    stateStorage.get(),
-  ]);
-  const hasBalancesError = accountStorageValue?.status === AccountsDownloadStatus.Error;
-  const hasTransactionsError =
-    stateStorageValue?.downloadTransactionsStatus === ResponseStatus.Error;
-
-  if (hasBalancesError || hasTransactionsError) {
-    await stateStorage.clear();
-  }
 
   if (apiKey) {
     sendResponse({ status: ResponseStatus.Success, apiKey });
@@ -164,10 +144,10 @@ const handleTransactionsDownload = async (sendResponse: (args: unknown) => void)
 };
 
 /**
- * Download all daily balances for all accounts. Since this is an operation that
- * may take a while, we will send progress updates to the popup.
+ * Download all daily balances for all account. Since this is an operation that
+ * may take a while, we will send progress updastes to the popup.
  */
-const handleDownloadAllAccountBalances = async () => {
+const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
   try {
     const throttledSendDownloadBalancesProgress = throttle(
       sendDownloadBalancesProgress,
@@ -199,24 +179,10 @@ const handleDownloadAllAccountBalances = async () => {
       successCount: successAccounts.length,
       errorCount: errorAccounts.length,
     });
-
-    chrome.runtime.sendMessage({
-      action: Action.DownloadBalancesComplete,
-      payload: {
-        outcome: ResponseStatus.Success,
-        successCount: successAccounts.length,
-        errorCount: errorAccounts.length,
-      },
-    });
   } catch (e) {
-    Sentry.captureException(e);
     await accountStorage.patch({ status: AccountsDownloadStatus.Error });
-    chrome.runtime.sendMessage({
-      action: Action.DownloadBalancesComplete,
-      payload: {
-        outcome: ResponseStatus.Error,
-      },
-    });
+  } finally {
+    sendResponse();
   }
 };
 
@@ -225,8 +191,6 @@ const handleDownloadAllAccountBalances = async () => {
  * so the popup can update the UI and we have a state to restore from if the
  * popup is closed.
  */
-const sendDownloadBalancesProgress = (payload: BalanceHistoryCallbackProgress) =>
-  chrome.runtime.sendMessage({
-    action: Action.DownloadBalancesProgress,
-    payload,
-  });
+const sendDownloadBalancesProgress = async (payload: BalanceHistoryCallbackProgress) => {
+  await accountStorage.patch({ progress: payload });
+};

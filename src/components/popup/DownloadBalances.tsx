@@ -3,42 +3,19 @@ import Progress from '@root/src/components/Progress';
 import SpinnerWithText from '@root/src/components/SpinnerWithText';
 import Text from '@root/src/components/Text';
 import DefaultButton from '@root/src/components/button/DefaultButton';
-import { Action, useMessageListener } from '@root/src/shared/hooks/useMessage';
+
 import useStorage from '@root/src/shared/hooks/useStorage';
-import { BalanceHistoryCallbackProgress } from '@root/src/shared/lib/accounts';
 import accountStorage, { AccountsDownloadStatus } from '@root/src/shared/storages/accountStorage';
 import pluralize from 'pluralize';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 const DownloadBalances = () => {
   const accountStateValue = useStorage(accountStorage);
   const isSuccess = accountStateValue.status === AccountsDownloadStatus.Success;
 
-  const [currentProgress, setCurrentProgress] = useState<(typeof accountStateValue)['progress']>(
-    accountStateValue.progress,
-  );
-
-  useMessageListener(
-    Action.DownloadBalancesProgress,
-    (progressArgs: BalanceHistoryCallbackProgress) => setCurrentProgress(progressArgs),
-  );
-
-  useMessageListener(
-    Action.DownloadBalancesComplete,
-    ({
-      outcome,
-      successCount,
-      errorCount,
-    }: {
-      outcome: AccountsDownloadStatus;
-      successCount: number;
-      errorCount: number;
-    }) => accountStorage.patch({ successCount, errorCount, status: outcome }),
-  );
-
   const content = useMemo(() => {
-    const { successCount, errorCount } = accountStateValue ?? {};
-    const { totalAccounts, completedAccounts, completePercentage } = currentProgress ?? {};
+    const { successCount, errorCount, progress } = accountStateValue ?? {};
+    const { totalAccounts, completedAccounts, completePercentage = 0 } = progress ?? {};
 
     if (isSuccess) {
       return (
@@ -58,7 +35,7 @@ const DownloadBalances = () => {
           </DefaultButton>
         </div>
       );
-    } else if (totalAccounts) {
+    } else if (completePercentage > 0) {
       return (
         <div className="flex flex-col gap-3">
           <Text className="text-current text-textLight">
@@ -79,7 +56,7 @@ const DownloadBalances = () => {
     } else {
       return <Text>Getting your balance information...</Text>;
     }
-  }, [isSuccess, accountStateValue, currentProgress]);
+  }, [isSuccess, accountStateValue]);
 
   if (accountStateValue.status === AccountsDownloadStatus.Error) {
     return (

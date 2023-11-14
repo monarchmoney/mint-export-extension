@@ -60,18 +60,26 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
       totalTransactionsCount: undefined,
     });
 
-    await accountStorage.clear();
     await accountStorage.patch({ status: AccountsDownloadStatus.Loading });
 
-    const mintAccounts = await fetchAccounts({ offset: 0 });
-    await accountStorage.patch({
-      progress: { totalAccounts: mintAccounts.length, completedAccounts: 0, completePercentage: 0 },
-      successCount: 0,
-      errorCount: 0,
-    });
+    try {
+      const mintAccounts = await fetchAccounts({ offset: 0 });
+      await accountStorage.patch({
+        status: AccountsDownloadStatus.Loading,
+        progress: {
+          totalAccounts: mintAccounts.length,
+          completedAccounts: 0,
+          completePercentage: 0,
+        },
+        successCount: 0,
+        errorCount: 0,
+      });
+    } catch (error) {
+      await accountStorage.patch({ status: AccountsDownloadStatus.Error });
+    }
 
     // The result of this message is handled by the DownloadBalances component
-    return sendMessage({ action: Action.DownloadAllAccountBalances });
+    await sendMessage({ action: Action.DownloadAllAccountBalances });
   }, [sendMessage]);
 
   const content = useMemo(() => {
