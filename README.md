@@ -27,25 +27,34 @@
 ### Chrome Web Store
 https://chromewebstore.google.com/detail/mint-data-exporter-by-mon/doknkjpaacjheilodaibfpimamfgfhap?hl=en&pli=1
 
+### Chrome Web Extension (unpacked)
+1. [Download the latest release zip](https://github.com/monarchmoney/mint-export-extension/releases/latest/download/chrome-extension.zip) and unpack it
+2. Open Chrome and navigate to `chrome://extensions`
+3. Enable developer mode
+4. Click on "Load unpacked" and select the folder you unpacked the zip to
+
 ### From Source
-1. Clone the repository
+
+Pre-requisites: [pnpm](https://pnpm.io/)
+
+1. Clone this repository
 2. Run `pnpm install`
-3. Run `pnpm build`
+3. Run `pnpm build` (a `dist` folder will be created)
 4. Open Chrome and navigate to `chrome://extensions`
 5. Enable developer mode
-6. Click on "Load unpacked" and select the `dist` folder
-
-## Contributing
-Contributions are welcome! Please read our [contributing guidelines](CONTRIBUTING.md) for more information.
-
-## Licensing Information
-This project is based on [chrome-extension-boilerplate-react-vite](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite) which is licensed under the MIT License (see `LICENSE`). Our modifications and additional code are licensed under the GNU General Public License (GPL), which is detailed in `LICENSE-GPL`.
+6. Click on "Load unpacked" and select the created `dist` folder
 
 ## Usage
 
 1. Install the extension (see above).
 2. Head to https://mint.intuit.com and log in to your Mint account.
 3. Click the extension button to get started.
+
+## Contributing
+Contributions are welcome! Please read our [contributing guidelines](CONTRIBUTING.md) for more information.
+
+## Licensing Information
+This project is based on [chrome-extension-boilerplate-react-vite](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite) which is licensed under the MIT License (see `LICENSE`). Our modifications and additional code are licensed under the GNU General Public License (GPL), which is detailed in `LICENSE-GPL`.
 
 ## FAQ
 
