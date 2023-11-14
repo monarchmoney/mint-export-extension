@@ -1,4 +1,4 @@
-import apiKeyStorage from '@src/shared/storages/apiKeyStorage';
+import apiKeyStorage, { getMintApiKey } from '@src/shared/storages/apiKeyStorage';
 
 const MINT_API_BASE_URL = 'https://mint.intuit.com';
 
@@ -14,7 +14,8 @@ export const makeMintApiRequest = async <T>(
   options: RequestInit,
   overrideApiKey?: string,
 ): Promise<TypedResponse<T>> => {
-  const apiKey = overrideApiKey ?? (await apiKeyStorage.get());
+  // Try to get cached API key to speed up requests if possible
+  const apiKey = overrideApiKey ?? (await getMintApiKey());
 
   if (!apiKey) {
     throw new Error('API key not found');
@@ -29,6 +30,10 @@ export const makeMintApiRequest = async <T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      await apiKeyStorage.clear();
+    }
+
     throw new Error(`Request failed with status ${response.status}`);
   }
 

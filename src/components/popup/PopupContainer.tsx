@@ -6,28 +6,26 @@ import DownloadTransactions from '@root/src/components/popup/DownloadTransaction
 import { ResponseStatus } from '@root/src/pages/popup/Popup';
 import { usePopupContext } from '@root/src/pages/popup/context';
 import React, { useCallback, useMemo } from 'react';
-import stateStorage from '@root/src/shared/storages/stateStorage';
+import stateStorage, { PageKey } from '@root/src/shared/storages/stateStorage';
 import useStorage from '@root/src/shared/hooks/useStorage';
 import { Action, useMessageSender } from '@root/src/shared/hooks/useMessage';
 import Footer from '@root/src/components/Footer';
 import OtherResources from '@root/src/components/popup/OtherResources';
 import { fetchAccounts } from '@root/src/shared/lib/accounts';
 import DownloadBalances from '@root/src/components/popup/DownloadBalances';
-import balancesStorage, {
-  BalanceHistoryDownloadStatus,
-} from '@root/src/shared/storages/balanceStorage';
+import accountStorage, { AccountsDownloadStatus } from '@root/src/shared/storages/accountStorage';
 
 interface Page {
   title: string;
   component: React.ElementType;
 }
 
-const PAGE_TO_COMPONENT: Record<string, Page> = {
+const PAGE_TO_COMPONENT: Record<PageKey, Page> = {
   downloadTransactions: {
     title: 'Mint Transactions',
     component: DownloadTransactions,
   },
-  downloadAccountBalanceHistory: {
+  downloadBalances: {
     title: 'Mint Account Balance History',
     component: DownloadBalances,
   },
@@ -39,39 +37,37 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
   const sendMessage = useMessageSender();
 
   const onDownloadTransactions = useCallback(async () => {
-    stateStorage.patch({
+    await stateStorage.patch({
       currentPage: 'downloadTransactions',
       downloadTransactionsStatus: ResponseStatus.Loading,
       totalTransactionsCount: undefined,
     });
     const result = await sendMessage<{ count?: number }>({ action: Action.DownloadTransactions });
     if (result?.count) {
-      stateStorage.patch({
+      await stateStorage.patch({
         downloadTransactionsStatus: ResponseStatus.Success,
         totalTransactionsCount: result.count,
       });
     } else {
-      stateStorage.patch({ downloadTransactionsStatus: ResponseStatus.Error });
+      await stateStorage.patch({ downloadTransactionsStatus: ResponseStatus.Error });
     }
   }, [sendMessage]);
 
   const onDownloadAccountBalanceHistory = useCallback(async () => {
-    // Reset any previous state
-    await Promise.all([
-      () =>
-        stateStorage.patch({
-          currentPage: 'downloadAccountBalanceHistory',
-        }),
-      () =>
-        balancesStorage.patch({
-          status: BalanceHistoryDownloadStatus.Loading,
-          progress: { totalAccounts: 0, completedAccounts: 0, completePercentage: 0 },
-        }),
-    ]);
+    await stateStorage.patch({
+      currentPage: 'downloadBalances',
+      downloadTransactionsStatus: undefined,
+      totalTransactionsCount: undefined,
+    });
+
+    await accountStorage.clear();
+    await accountStorage.patch({ status: AccountsDownloadStatus.Loading });
 
     const mintAccounts = await fetchAccounts({ offset: 0 });
-    await balancesStorage.patch({
+    await accountStorage.patch({
       progress: { totalAccounts: mintAccounts.length, completedAccounts: 0, completePercentage: 0 },
+      successCount: 0,
+      errorCount: 0,
     });
 
     // The result of this message is handled by the DownloadBalances component
@@ -126,7 +122,7 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
   const showBackArrow =
     currentPage === 'downloadTransactions'
       ? downloadTransactionsStatus !== ResponseStatus.Loading
-      : currentPage === 'downloadAccountBalanceHistory'
+      : currentPage === 'downloadBalances'
       ? downloadTransactionsStatus !== ResponseStatus.Loading
       : !!currentPage; // there's a page that's not index (index is undefined)
 

@@ -1,3 +1,5 @@
+const DEBUG = import.meta.env.VITE_DEBUG_STORAGE === '1';
+
 export enum StorageType {
   Local = 'local',
   Sync = 'sync',
@@ -32,10 +34,19 @@ export function createStorage<D>(
       );
     }
     const value = await chrome.storage[storageType].get([key]);
+
+    if (DEBUG) {
+      console.log(`_getDataFromStorage: Storage ${key} loaded`, value);
+    }
+
     return value[key] ?? fallback;
   };
 
   const _emitChange = () => {
+    if (DEBUG) {
+      console.log(`_emitChange: Emitting change for storage ${key}`);
+    }
+
     listeners.forEach((listener) => listener());
   };
 
@@ -43,11 +54,9 @@ export function createStorage<D>(
     if (typeof valueOrUpdate === 'function') {
       // eslint-disable-next-line no-prototype-builtins
       if (valueOrUpdate.hasOwnProperty('then')) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         cache = await valueOrUpdate(cache);
       } else {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         cache = valueOrUpdate(cache);
       }
@@ -55,16 +64,23 @@ export function createStorage<D>(
       cache = valueOrUpdate;
     }
     await chrome.storage[storageType].set({ [key]: cache });
+
+    if (DEBUG) {
+      console.log(`set: Storage ${key} updated`, cache);
+    }
+
     _emitChange();
   };
 
-  const patch = async (value: Partial<D>) => {
-    await set((prev) => ({ ...prev, ...value }));
-  };
+  const patch = (value: Partial<D>) => set((prev) => ({ ...prev, ...value }));
 
   const clear = async () => {
     await chrome.storage[storageType].remove(key);
-    console.log(`Storage ${key} cleared`);
+
+    if (DEBUG) {
+      console.log(`clear: Storage ${key} cleared`);
+    }
+
     cache = fallback;
     _emitChange();
   };
@@ -76,9 +92,7 @@ export function createStorage<D>(
     };
   };
 
-  const getSnapshot = () => {
-    return cache;
-  };
+  const getSnapshot = () => cache;
 
   _getDataFromStorage().then((data) => {
     cache = data;

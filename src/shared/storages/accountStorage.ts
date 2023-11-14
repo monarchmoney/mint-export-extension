@@ -1,7 +1,7 @@
 import { BalanceHistoryCallbackProgress } from '@root/src/shared/lib/accounts';
 import { createStorage, StorageType } from '@src/shared/storages/base';
 
-export enum BalanceHistoryDownloadStatus {
+export enum AccountsDownloadStatus {
   Idle = 'idle',
   Loading = 'loading',
   Success = 'success',
@@ -9,16 +9,16 @@ export enum BalanceHistoryDownloadStatus {
 }
 
 type State = {
-  status: BalanceHistoryDownloadStatus;
+  status: AccountsDownloadStatus;
   successCount: number;
   errorCount: number;
   progress?: BalanceHistoryCallbackProgress;
 };
 
-const balancesStorage = createStorage<State>(
-  'balances',
+const accountStorage = createStorage<State>(
+  'accounts',
   {
-    status: BalanceHistoryDownloadStatus.Idle,
+    status: AccountsDownloadStatus.Idle,
     successCount: 0,
     errorCount: 0,
     progress: {
@@ -32,4 +32,4 @@ const balancesStorage = createStorage<State>(
   },
 );
 
-export default balancesStorage;
+export default accountStorage;

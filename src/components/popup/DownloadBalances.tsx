@@ -6,28 +6,19 @@ import DefaultButton from '@root/src/components/button/DefaultButton';
 import { Action, useMessageListener } from '@root/src/shared/hooks/useMessage';
 import useStorage from '@root/src/shared/hooks/useStorage';
 import { BalanceHistoryCallbackProgress } from '@root/src/shared/lib/accounts';
-import balancesStorage, {
-  BalanceHistoryDownloadStatus,
-} from '@root/src/shared/storages/balanceStorage';
+import accountStorage, { AccountsDownloadStatus } from '@root/src/shared/storages/accountStorage';
 import pluralize from 'pluralize';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 const DownloadBalances = () => {
-  const balanceStateValue = useStorage(balancesStorage);
-
-  const [progress, setProgress] = useState<BalanceHistoryCallbackProgress>(
-    balanceStateValue.progress,
-  );
-
-  const [status, setStatus] = useState(balanceStateValue.status);
-  const isSuccess = status === BalanceHistoryDownloadStatus.Success;
-
-  const [accountsOutcome, setAccountsOutcome] = useState({ successCount: 0, errorCount: 0 });
+  const accountStateValue = useStorage(accountStorage);
+  const isSuccess = accountStateValue.status === AccountsDownloadStatus.Success;
 
   useMessageListener(
     Action.DownloadBalancesProgress,
     ({ completedAccounts, totalAccounts, completePercentage }: BalanceHistoryCallbackProgress) =>
-      setProgress({ completedAccounts, totalAccounts, completePercentage }),
+      // TODO(@vanessa): Confirm if this updates the accountStateValue in accountStorage
+      accountStorage.patch({ progress: { completedAccounts, totalAccounts, completePercentage } }),
   );
 
   useMessageListener(
@@ -37,18 +28,15 @@ const DownloadBalances = () => {
       successCount,
       errorCount,
     }: {
-      outcome: BalanceHistoryDownloadStatus;
+      outcome: AccountsDownloadStatus;
       successCount: number;
       errorCount: number;
-    }) => {
-      setStatus(outcome);
-      setAccountsOutcome({ successCount, errorCount });
-    },
+    }) => accountStorage.patch({ successCount, errorCount, status: outcome }),
   );
 
   const content = useMemo(() => {
+    const { progress, successCount, errorCount } = accountStateValue;
     const { totalAccounts, completedAccounts, completePercentage } = progress;
-    const { successCount, errorCount } = accountsOutcome;
 
     if (isSuccess) {
       return (
@@ -89,9 +77,9 @@ const DownloadBalances = () => {
     } else {
       return <Text>Getting your balance information...</Text>;
     }
-  }, [isSuccess, progress, accountsOutcome]);
+  }, [isSuccess, accountStateValue]);
 
-  if (status === BalanceHistoryDownloadStatus.Error) {
+  if (status === AccountsDownloadStatus.Error) {
     return <ErrorBoundary>Sorry, there was an error downloading your balances</ErrorBoundary>;
   }
 

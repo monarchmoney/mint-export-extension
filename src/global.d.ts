@@ -1,5 +1,15 @@
 import Chrome from 'chrome';
 
+declare global {
+  interface Window {
+    __shellInternal?: {
+      appExperience: {
+        appApiKey: string;
+      };
+    };
+  }
+}
+
 declare namespace chrome {
   export default Chrome;
 }

@@ -8,7 +8,7 @@ import {
 } from '@root/src/shared/lib/accounts';
 import { throttle } from '@root/src/shared/lib/events';
 import stateStorage from '@root/src/shared/storages/stateStorage';
-import balancesStorage, { BalanceHistoryDownloadStatus } from '@src/shared/storages/balanceStorage';
+import accountStorage, { AccountsDownloadStatus } from '@src/shared/storages/accountStorage';
 import {
   concatenateCSVPages,
   fetchAllDownloadTransactionPages,
@@ -36,8 +36,10 @@ Sentry.init({
   ignoreErrors: [/ResizeObserver/, 'ResizeObserver loop limit exceeded', 'Network request failed'],
   beforeSend(event) {
     if (event.user) {
-      // Do not send any user data to Sentry
-      delete event.user;
+      // Do not send user data to Sentry
+      delete event.user.ip_address;
+      delete event.user.segment;
+      delete event.user.id;
     }
     return event;
   },
@@ -46,16 +48,6 @@ Sentry.init({
 reloadOnUpdate('pages/background');
 
 const THROTTLE_INTERVAL_MS = 200;
-
-declare global {
-  interface Window {
-    __shellInternal?: {
-      appExperience: {
-        appApiKey: string;
-      };
-    };
-  }
-}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.tab?.url.startsWith('chrome://')) {
@@ -190,8 +182,8 @@ const handleDownloadAllAccountBalances = async () => {
       filename: 'mint-balances.zip',
     });
 
-    await balancesStorage.patch({
-      status: BalanceHistoryDownloadStatus.Success,
+    await accountStorage.patch({
+      status: AccountsDownloadStatus.Success,
       successCount: successAccounts.length,
       errorCount: errorAccounts.length,
     });
@@ -204,13 +196,9 @@ const handleDownloadAllAccountBalances = async () => {
         errorCount: errorAccounts.length,
       },
     });
-
-    await stateStorage.patch({ currentPage: undefined });
   } catch (e) {
     Sentry.captureException(e);
-
-    await balancesStorage.patch({ status: BalanceHistoryDownloadStatus.Error });
-
+    await accountStorage.patch({ status: AccountsDownloadStatus.Error });
     chrome.runtime.sendMessage({
       action: Action.DownloadBalancesComplete,
       payload: {
@@ -227,7 +215,7 @@ const handleDownloadAllAccountBalances = async () => {
  */
 const sendDownloadBalancesProgress = async (payload: BalanceHistoryCallbackProgress) =>
   await Promise.all([
-    () => balancesStorage.patch({ progress: payload }),
+    () => accountStorage.patch({ progress: payload }),
     () =>
       chrome.runtime.sendMessage({
         action: Action.DownloadBalancesProgress,

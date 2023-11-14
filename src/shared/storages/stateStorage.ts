@@ -1,7 +1,9 @@
 import { createStorage, StorageType } from '@src/shared/storages/base';
 
+export type PageKey = 'downloadTransactions' | 'downloadBalances';
+
 type State = {
-  currentPage: string | undefined;
+  currentPage: PageKey | undefined;
   // Transactions
   downloadTransactionsStatus: string; // ResponseStatus
   totalTransactionsCount: number;

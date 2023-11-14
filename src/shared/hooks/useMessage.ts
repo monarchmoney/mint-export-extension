@@ -28,9 +28,14 @@ export const useMessageListener = <TPayload extends Record<string, unknown>>(
     }
 
     // Create a new listener
-    listenerRef.current = (message) => {
+    listenerRef.current = async (message) => {
       if (message.action === action) {
-        callback(message.payload as TPayload);
+        // eslint-disable-next-line no-prototype-builtins
+        if (callback.hasOwnProperty('then')) {
+          await callback(message.payload as TPayload);
+        } else {
+          callback(message.payload as TPayload);
+        }
       }
     };
 
