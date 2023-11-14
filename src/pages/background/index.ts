@@ -91,6 +91,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 const handlePopupOpened = async (sendResponse: (args: unknown) => void) => {
   const apiKey = await apiKeyStorage.get();
 
+  const [accountStorageValue, stateStorageValue] = await Promise.all([
+    accountStorage.get(),
+    stateStorage.get(),
+  ]);
+  const hasBalancesError = accountStorageValue?.status === AccountsDownloadStatus.Error;
+  const hasTransactionsError =
+    stateStorageValue?.downloadTransactionsStatus === ResponseStatus.Error;
+
+  if (hasBalancesError || hasTransactionsError) {
+    await stateStorage.clear();
+  }
+
   if (apiKey) {
     sendResponse({ status: ResponseStatus.Success, apiKey });
   } else {
@@ -213,12 +225,8 @@ const handleDownloadAllAccountBalances = async () => {
  * so the popup can update the UI and we have a state to restore from if the
  * popup is closed.
  */
-const sendDownloadBalancesProgress = async (payload: BalanceHistoryCallbackProgress) =>
-  await Promise.all([
-    () => accountStorage.patch({ progress: payload }),
-    () =>
-      chrome.runtime.sendMessage({
-        action: Action.DownloadBalancesProgress,
-        payload,
-      }),
-  ]);
+const sendDownloadBalancesProgress = (payload: BalanceHistoryCallbackProgress) =>
+  chrome.runtime.sendMessage({
+    action: Action.DownloadBalancesProgress,
+    payload,
+  });

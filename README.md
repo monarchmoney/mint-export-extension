@@ -6,6 +6,7 @@
 
 > Effortlessly export your Mint data to CSV.
 
+![](https://img.shields.io/github/actions/workflow/status/monarchmoney/mint-export-extension/test.yml)
 ![](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![](https://img.shields.io/badge/Typescript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![](https://badges.aleen42.com/src/vitejs.svg)

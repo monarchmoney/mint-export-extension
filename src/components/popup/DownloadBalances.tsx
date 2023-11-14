@@ -8,17 +8,19 @@ import useStorage from '@root/src/shared/hooks/useStorage';
 import { BalanceHistoryCallbackProgress } from '@root/src/shared/lib/accounts';
 import accountStorage, { AccountsDownloadStatus } from '@root/src/shared/storages/accountStorage';
 import pluralize from 'pluralize';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 const DownloadBalances = () => {
   const accountStateValue = useStorage(accountStorage);
   const isSuccess = accountStateValue.status === AccountsDownloadStatus.Success;
 
+  const [currentProgress, setCurrentProgress] = useState<(typeof accountStateValue)['progress']>(
+    accountStateValue.progress,
+  );
+
   useMessageListener(
     Action.DownloadBalancesProgress,
-    ({ completedAccounts, totalAccounts, completePercentage }: BalanceHistoryCallbackProgress) =>
-      // TODO(@vanessa): Confirm if this updates the accountStateValue in accountStorage
-      accountStorage.patch({ progress: { completedAccounts, totalAccounts, completePercentage } }),
+    (progressArgs: BalanceHistoryCallbackProgress) => setCurrentProgress(progressArgs),
   );
 
   useMessageListener(
@@ -35,8 +37,8 @@ const DownloadBalances = () => {
   );
 
   const content = useMemo(() => {
-    const { progress, successCount, errorCount } = accountStateValue;
-    const { totalAccounts, completedAccounts, completePercentage } = progress;
+    const { successCount, errorCount } = accountStateValue ?? {};
+    const { totalAccounts, completedAccounts, completePercentage } = currentProgress ?? {};
 
     if (isSuccess) {
       return (
@@ -77,10 +79,15 @@ const DownloadBalances = () => {
     } else {
       return <Text>Getting your balance information...</Text>;
     }
-  }, [isSuccess, accountStateValue]);
+  }, [isSuccess, accountStateValue, currentProgress]);
 
-  if (status === AccountsDownloadStatus.Error) {
-    return <ErrorBoundary>Sorry, there was an error downloading your balances</ErrorBoundary>;
+  if (accountStateValue.status === AccountsDownloadStatus.Error) {
+    return (
+      <ErrorBoundary>
+        Sorry, there was an error downloading your balances. We&apos;ve been notified and are
+        working on a fix.
+      </ErrorBoundary>
+    );
   }
 
   return (

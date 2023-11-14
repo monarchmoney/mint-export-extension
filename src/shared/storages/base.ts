@@ -34,19 +34,10 @@ export function createStorage<D>(
       );
     }
     const value = await chrome.storage[storageType].get([key]);
-
-    if (DEBUG) {
-      console.log(`_getDataFromStorage: Storage ${key} loaded`, value);
-    }
-
     return value[key] ?? fallback;
   };
 
   const _emitChange = () => {
-    if (DEBUG) {
-      console.log(`_emitChange: Emitting change for storage ${key}`);
-    }
-
     listeners.forEach((listener) => listener());
   };
 
@@ -64,11 +55,6 @@ export function createStorage<D>(
       cache = valueOrUpdate;
     }
     await chrome.storage[storageType].set({ [key]: cache });
-
-    if (DEBUG) {
-      console.log(`set: Storage ${key} updated`, cache);
-    }
-
     _emitChange();
   };
 
