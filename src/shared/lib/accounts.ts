@@ -3,6 +3,7 @@ import { DateTime, Interval } from 'luxon';
 import { makeMintApiRequest } from '@root/src/shared/lib/auth';
 import {
   DATE_FILTER_ALL_TIME,
+  MINT_DAILY_TRENDS_MAX_DAYS,
   MINT_HEADERS,
   MINT_RATE_LIMIT_DELAY_MS,
 } from '@root/src/shared/lib/constants';
@@ -76,9 +77,9 @@ export const fetchMonthlyBalancesForAccount = async ({
 };
 
 /**
- * Determine earliest date for which account has balance history, and return monthly intervals from then to now.
+ * Determine earliest date for which account has balance history, and return 43 day intervals from then to now.
  */
-const fetchMonthlyIntervalsForAccountHistory = async ({
+const fetchIntervalsForAccountHistory = async ({
   accountId,
   overrideApiKey,
 }: {
@@ -102,28 +103,28 @@ const fetchMonthlyIntervalsForAccountHistory = async ({
     throw new Error('Unable to determine start date for account history.');
   }
 
-  // then fetch balances for each month in range, since that's the only timeframe that the API will return a balance for each day
-  const months = Interval.fromDateTimes(
+  // then fetch balances for each period in the range
+  const periods = Interval.fromDateTimes(
     DateTime.fromISO(startDate).startOf('month'),
-    DateTime.local().endOf('month'),
+    DateTime.now().endOf('day'),
   ).splitBy({
-    months: 1,
+    days: MINT_DAILY_TRENDS_MAX_DAYS,
   }) as Interval[];
 
-  return { months, reportType };
+  return { periods, reportType };
 };
 
 /**
  * Fetch balance history for each month for an account.
  */
-const fetchDailyBalancesForMonthIntervals = async ({
-  months,
+const fetchDailyBalancesForAccount = async ({
+  periods,
   accountId,
   reportType,
   overrideApiKey,
   onProgress,
 }: {
-  months: Interval[];
+  periods: Interval[];
   accountId: string;
   reportType: string;
   overrideApiKey?: string;
@@ -137,8 +138,8 @@ const fetchDailyBalancesForMonthIntervals = async ({
     count: 0,
   };
 
-  const dailyBalancesByMonth = await withRateLimit({ delayMs: MINT_RATE_LIMIT_DELAY_MS })(
-    months.map(
+  const dailyBalancesByPeriod = await withRateLimit({ delayMs: MINT_RATE_LIMIT_DELAY_MS })(
+    periods.map(
       ({ start, end }) =>
         () =>
           withRetry(() =>
@@ -167,13 +168,13 @@ const fetchDailyBalancesForMonthIntervals = async ({
               )
               .finally(() => {
                 counter.count += 1;
-                onProgress?.({ complete: counter.count, total: months.length });
+                onProgress?.({ complete: counter.count, total: periods.length });
               }),
           ),
     ),
   );
 
-  const balancesByDate = dailyBalancesByMonth.reduce((acc, balances) => acc.concat(balances), []);
+  const balancesByDate = dailyBalancesByPeriod.reduce((acc, balances) => acc.concat(balances), []);
 
   return balancesByDate;
 };
@@ -187,43 +188,43 @@ export const fetchDailyBalancesForAllAccounts = async ({
 }) => {
   const accounts = await withRetry(() => fetchAccounts({ overrideApiKey }));
 
-  // first, fetch the range of months we need to fetch for each account
-  const accountsWithMonthsToFetch = await Promise.all(
+  // first, fetch the range of dates we need to fetch for each account
+  const accountsWithPeriodsToFetch = await Promise.all(
     accounts.map(async ({ id: accountId, name: accountName }) => {
-      const { months, reportType } = await withDefaultOnError({ months: [], reportType: '' })(
-        fetchMonthlyIntervalsForAccountHistory({
+      const { periods, reportType } = await withDefaultOnError({ periods: [], reportType: '' })(
+        fetchIntervalsForAccountHistory({
           accountId,
           overrideApiKey,
         }),
       );
-      return { months, reportType, accountId, accountName };
+      return { periods, reportType, accountId, accountName };
     }),
   );
 
-  // one per account per month
-  const totalRequestsToFetch = accountsWithMonthsToFetch.reduce(
-    (acc, { months }) => acc + months.length,
+  // one per account per 43 day period
+  const totalRequestsToFetch = accountsWithPeriodsToFetch.reduce(
+    (acc, { periods }) => acc + periods.length,
     0,
   );
 
   // fetch one account at a time so we don't hit the rate limit
   const balancesByAccount = await resolveSequential(
-    accountsWithMonthsToFetch.map(
-      ({ accountId, accountName, months, reportType }, accountIndex) =>
+    accountsWithPeriodsToFetch.map(
+      ({ accountId, accountName, periods, reportType }, accountIndex) =>
         async () => {
           const balances = await withDefaultOnError<TrendEntry[]>([])(
-            fetchDailyBalancesForMonthIntervals({
+            fetchDailyBalancesForAccount({
               accountId,
-              months,
+              periods,
               reportType,
               overrideApiKey,
               onProgress: ({ complete }) => {
                 // this is the progress handler for *each* account, so we need to sum up the results before calling onProgress
 
-                const previousAccounts = accountsWithMonthsToFetch.slice(0, accountIndex);
+                const previousAccounts = accountsWithPeriodsToFetch.slice(0, accountIndex);
                 // since accounts are fetched sequentially, we can assume that all previous accounts have completed all their requests
                 const previousCompletedRequestCount = previousAccounts.reduce(
-                  (acc, { months }) => acc + months.length,
+                  (acc, { periods }) => acc + periods.length,
                   0,
                 );
                 const completedRequests = previousCompletedRequestCount + complete;
