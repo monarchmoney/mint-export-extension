@@ -17,7 +17,7 @@ import {
 type TrendEntry = {
   amount: number;
   date: string;
-  type: string;
+  type: 'DEBT' | 'ASSET' | 'EXPENSE' | string;
 };
 
 type TrendsResponse = {
@@ -147,13 +147,22 @@ const fetchDailyBalancesForMonthIntervals = async ({
                 type: 'CUSTOM',
                 startDate: start.toISODate(),
                 // end is really the start of the next month, so subtract one day
-                endDate: end < DateTime.now()
+                endDate:
+                  end < DateTime.now()
                     ? end.minus({ day: 1 }).toISODate()
                     : DateTime.now().toISODate(),
               },
               overrideApiKey,
             })
-              .then((response) => response.json().then(({ Trend }) => Trend))
+              .then((response) =>
+                response.json().then(({ Trend }) =>
+                  Trend.map(({ amount, type, ...rest }) => ({
+                    ...rest,
+                    type,
+                    amount: type === 'DEBT' ? -amount : amount,
+                  })),
+                ),
+              )
               .finally(() => {
                 counter.count += 1;
                 onProgress?.({ complete: counter.count, total: months.length });
