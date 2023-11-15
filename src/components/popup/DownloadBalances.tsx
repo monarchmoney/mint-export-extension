@@ -30,7 +30,7 @@ const DownloadBalances = () => {
               {pluralize('account', errorCount, true)} failed to download.
             </Text>
           )}
-          <DefaultButton href="https://help.monarchmoney.com/hc/en-us/articles/4411877901972-Move-data-over-from-Mint-to-Monarch">
+          <DefaultButton href="https://help.monarchmoney.com/hc/en-us/articles/14882425704212-Upload-account-balance-history">
             Import into Monarch
           </DefaultButton>
         </div>
