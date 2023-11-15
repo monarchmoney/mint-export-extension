@@ -19,7 +19,7 @@ type TrendEntry = {
   date: string;
   // this is determined by the type of report we fetch (DEBTS_TIME/ASSETS_TIME)
   // it will return different values if we decide to fetch more types of reports (e.g., SPENDING_TIME)
-  type: 'DEBT' | 'ASSET';
+  type: 'DEBT' | 'ASSET' | string;
 };
 
 type TrendsResponse = {
