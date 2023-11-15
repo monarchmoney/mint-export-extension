@@ -17,7 +17,9 @@ import {
 type TrendEntry = {
   amount: number;
   date: string;
-  type: string;
+  // this is determined by the type of report we fetch (DEBTS_TIME/ASSETS_TIME)
+  // it will return different values if we decide to fetch more types of reports (e.g., SPENDING_TIME)
+  type: 'DEBT' | 'ASSET' | string;
 };
 
 type TrendsResponse = {
@@ -147,13 +149,22 @@ const fetchDailyBalancesForMonthIntervals = async ({
                 type: 'CUSTOM',
                 startDate: start.toISODate(),
                 // end is really the start of the next month, so subtract one day
-                endDate: end < DateTime.now()
+                endDate:
+                  end < DateTime.now()
                     ? end.minus({ day: 1 }).toISODate()
                     : DateTime.now().toISODate(),
               },
               overrideApiKey,
             })
-              .then((response) => response.json().then(({ Trend }) => Trend))
+              .then((response) =>
+                response.json().then(({ Trend }) =>
+                  Trend.map(({ amount, type, ...rest }) => ({
+                    ...rest,
+                    type,
+                    amount: type === 'DEBT' ? -amount : amount,
+                  })),
+                ),
+              )
               .finally(() => {
                 counter.count += 1;
                 onProgress?.({ complete: counter.count, total: months.length });
