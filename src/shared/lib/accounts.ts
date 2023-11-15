@@ -76,6 +76,36 @@ export const fetchMonthlyBalancesForAccount = async ({
   }
 };
 
+export const calculateIntervalForAccountHistory = (monthlyBalances: TrendEntry[]) => {
+  const startDate = monthlyBalances[0]?.date;
+
+  if (!startDate) {
+    throw new Error('Unable to determine start date for account history.');
+  }
+
+  // find the last month with a non-zero balance
+  let endDate: string;
+  let monthIndex = monthlyBalances.length - 1;
+  while (monthIndex > 0 && monthlyBalances[monthIndex].amount === 0) {
+    monthIndex -= 1;
+    endDate = monthlyBalances[monthIndex].date;
+  }
+
+  const now = DateTime.now();
+  const approximateRangeEnd = endDate
+    ? // Mint trend months are strange and daily balances may be present after the end of the reported
+      // month (anecodotally observed daily balances 10 days into the first month that showed a zero
+      // monthly balance).
+      DateTime.fromISO(endDate).plus({ month: 1 }).endOf('month')
+    : now;
+
+  // then fetch balances for each period in the range
+  return Interval.fromDateTimes(
+    DateTime.fromISO(startDate).startOf('month'),
+    (approximateRangeEnd < now ? approximateRangeEnd : now).endOf('day'),
+  );
+};
+
 /**
  * Determine earliest date for which account has balance history, and return 43 day intervals from then to now.
  */
@@ -96,32 +126,8 @@ const fetchIntervalsForAccountHistory = async ({
   }
 
   const { balancesByDate: monthlyBalances, reportType } = balanceInfo;
-
-  const startDate = monthlyBalances[0]?.date;
-
-  if (!startDate) {
-    throw new Error('Unable to determine start date for account history.');
-  }
-
-  // find the last month with a non-zero balance
-  let endDate: string;
-  for (let i = monthlyBalances.length - 1; i >= 0 && monthlyBalances[i].amount === 0; i -= 1) {
-    endDate = monthlyBalances[i].date;
-  }
-
-  const now = DateTime.now();
-  const approximateRangeEnd = endDate
-    ? // Mint trend months are strange and daily balances may be present after the end of the reported
-      // month (anecodotally observed daily balances 10 days into the first month that showed a zero
-      // monthly balance).
-      DateTime.fromISO(endDate).plus({ month: 1 })
-    : now;
-
-  // then fetch balances for each period in the range
-  const periods = Interval.fromDateTimes(
-    DateTime.fromISO(startDate).startOf('month'),
-    (approximateRangeEnd < now ? approximateRangeEnd : now).endOf('day'),
-  ).splitBy({
+  const interval = calculateIntervalForAccountHistory(monthlyBalances);
+  const periods = interval.splitBy({
     days: MINT_DAILY_TRENDS_MAX_DAYS,
   }) as Interval[];
 
