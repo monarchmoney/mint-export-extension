@@ -147,7 +147,9 @@ const fetchDailyBalancesForMonthIntervals = async ({
                 type: 'CUSTOM',
                 startDate: start.toISODate(),
                 // end is really the start of the next month, so subtract one day
-                endDate: end.minus({ day: 1 }).toISODate(),
+                endDate: end < DateTime.now()
+                    ? end.minus({ day: 1 }).toISODate()
+                    : DateTime.now().toISODate(),
               },
               overrideApiKey,
             })
