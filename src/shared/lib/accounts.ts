@@ -103,10 +103,24 @@ const fetchIntervalsForAccountHistory = async ({
     throw new Error('Unable to determine start date for account history.');
   }
 
+  // find the last month with a non-zero balance
+  let endDate: string;
+  for (let i = monthlyBalances.length - 1; i >= 0 && monthlyBalances[i].amount === 0; i -= 1) {
+    endDate = monthlyBalances[i].date;
+  }
+
+  const now = DateTime.now();
+  const approximateRangeEnd = endDate
+    ? // Mint trend months are strange and daily balances may be present after the end of the reported
+      // month (anecodotally observed daily balances 10 days into the first month that showed a zero
+      // monthly balance).
+      DateTime.fromISO(endDate).plus({ month: 1 })
+    : now;
+
   // then fetch balances for each period in the range
   const periods = Interval.fromDateTimes(
     DateTime.fromISO(startDate).startOf('month'),
-    DateTime.now().endOf('day'),
+    (approximateRangeEnd < now ? approximateRangeEnd : now).endOf('day'),
   ).splitBy({
     days: MINT_DAILY_TRENDS_MAX_DAYS,
   }) as Interval[];
