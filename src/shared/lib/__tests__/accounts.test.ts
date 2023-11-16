@@ -81,6 +81,58 @@ describe('formatBalancesAsCSV', () => {
 "2020-01-01",""
 `);
   });
+
+  it('trims trailing zero balances', () => {
+    const result = formatBalancesAsCSV([
+      {
+        amount: 123.45,
+        date: '2020-01-01',
+        type: '',
+      },
+      {
+        amount: 234.56,
+        date: '2020-01-02',
+        type: '',
+      },
+      {
+        amount: 0,
+        date: '2020-01-03',
+        type: '',
+      },
+      {
+        amount: 0,
+        date: '2020-01-04',
+        type: '',
+      },
+    ]);
+    expect(result).toEqual(`"Date","Amount"
+"2020-01-01","123.45"
+"2020-01-02","234.56"
+`);
+  });
+
+  it('leaves one row if all balances are zero', () => {
+    const result = formatBalancesAsCSV([
+      {
+        amount: 0,
+        date: '2020-01-01',
+        type: '',
+      },
+      {
+        amount: 0,
+        date: '2020-01-02',
+        type: '',
+      },
+      {
+        amount: 0,
+        date: '2020-01-03',
+        type: '',
+      },
+    ]);
+    expect(result).toEqual(`"Date","Amount"
+"2020-01-01","0"
+`);
+  });
 });
 
 describe('fetchDailyBalancesForAllAccounts', () => {

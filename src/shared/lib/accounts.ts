@@ -365,11 +365,17 @@ export const fetchAccounts = async ({
 
 export const formatBalancesAsCSV = (balances: TrendEntry[], accountName?: string) => {
   const header = ['Date', 'Amount', accountName && 'Account Name'].filter(Boolean);
-  const rows = balances.map(({ date, amount }) => [
-    date,
-    amount,
-    ...(accountName ? [accountName] : []),
-  ]);
+  const maybeAccountColumn: [string?] = accountName ? [accountName] : [];
+  // remove zero balances from the end of the report leaving just the first row if all are zero
+  const rows = balances.reduceRight(
+    (acc, { date, amount }, index) => {
+      if (acc.length || amount !== 0 || index === 0) {
+        acc.unshift([date, amount, ...maybeAccountColumn]);
+      }
+      return acc;
+    },
+    [] as [string, number, string?][],
+  );
 
   return formatCSV([header, ...rows]);
 };
