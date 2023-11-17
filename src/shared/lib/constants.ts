@@ -14,3 +14,6 @@ export const UTM_URL_PARAMETERS = {
 
 // we may need to increase this, need to test more
 export const MINT_RATE_LIMIT_DELAY_MS = 50;
+
+// The Mint API returns daily activity when the date range is 43 days or fewer.
+export const MINT_DAILY_TRENDS_MAX_DAYS = 43;

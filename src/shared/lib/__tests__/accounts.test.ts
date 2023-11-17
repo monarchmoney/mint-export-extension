@@ -1,11 +1,13 @@
 import { TEST_MINT_API_KEY } from '@root/src/shared/lib/constants';
 import {
+  calculateIntervalForAccountHistory,
   fetchAccounts,
   fetchDailyBalancesForAllAccounts,
   fetchMonthlyBalancesForAccount,
   fetchNetWorthBalances,
   formatBalancesAsCSV,
 } from '../accounts';
+import { DateTime } from 'luxon';
 
 describe('fetchMonthlyBalancesForAccount', () => {
   it('fetches balances by date for asset account', async () => {
@@ -79,6 +81,58 @@ describe('formatBalancesAsCSV', () => {
 "2020-01-01",""
 `);
   });
+
+  it('trims trailing zero balances', () => {
+    const result = formatBalancesAsCSV([
+      {
+        amount: 123.45,
+        date: '2020-01-01',
+        type: '',
+      },
+      {
+        amount: 234.56,
+        date: '2020-01-02',
+        type: '',
+      },
+      {
+        amount: 0,
+        date: '2020-01-03',
+        type: '',
+      },
+      {
+        amount: 0,
+        date: '2020-01-04',
+        type: '',
+      },
+    ]);
+    expect(result).toEqual(`"Date","Amount"
+"2020-01-01","123.45"
+"2020-01-02","234.56"
+`);
+  });
+
+  it('leaves one row if all balances are zero', () => {
+    const result = formatBalancesAsCSV([
+      {
+        amount: 0,
+        date: '2020-01-01',
+        type: '',
+      },
+      {
+        amount: 0,
+        date: '2020-01-02',
+        type: '',
+      },
+      {
+        amount: 0,
+        date: '2020-01-03',
+        type: '',
+      },
+    ]);
+    expect(result).toEqual(`"Date","Amount"
+"2020-01-01","0"
+`);
+  });
 });
 
 describe('fetchDailyBalancesForAllAccounts', () => {
@@ -89,4 +143,64 @@ describe('fetchDailyBalancesForAllAccounts', () => {
     });
     expect(response.length).toBeGreaterThan(0);
   }, 60000);
+});
+
+describe('calculateIntervalForAccountHistory', () => {
+  it('starts at the first day of the first month with history', () => {
+    const result = calculateIntervalForAccountHistory([
+      { date: '2023-01-31', amount: 5, type: '' },
+      { date: '2023-02-28', amount: 10, type: '' },
+    ]);
+    expect(result.start.toISODate()).toBe('2023-01-01');
+  });
+
+  it('ends today for nonzero balances', () => {
+    const result = calculateIntervalForAccountHistory([
+      { date: '2023-01-31', amount: 5, type: '' },
+      { date: '2023-02-28', amount: 10, type: '' },
+    ]);
+    expect(result.end.toISODate()).toBe(DateTime.now().toISODate());
+  });
+
+  it('ends today even if the data goes beyond today', () => {
+    const nextMonth = DateTime.now().plus({ month: 1 }).endOf('month').toISODate();
+    const result = calculateIntervalForAccountHistory([
+      { date: '2023-01-31', amount: 5, type: '' },
+      { date: nextMonth, amount: 10, type: '' },
+    ]);
+    expect(result.end.toISODate()).toBe(DateTime.now().toISODate());
+  });
+
+  it('ends 1 month after the last historic nonzero monthly balance', () => {
+    const result = calculateIntervalForAccountHistory([
+      { date: '2023-01-31', amount: 5, type: '' },
+      { date: '2023-02-28', amount: 10, type: '' },
+      { date: '2023-03-31', amount: 0, type: '' },
+    ]);
+    expect(result.end.toISODate()).toBe('2023-03-31');
+  });
+
+  it('ends 1 month after the last historic nonzero monthly balance', () => {
+    const result = calculateIntervalForAccountHistory([
+      { date: '2023-01-31', amount: 5, type: '' },
+      { date: '2023-02-28', amount: 10, type: '' },
+      { date: '2023-03-31', amount: 0, type: '' },
+      { date: '2023-04-30', amount: 0, type: '' },
+      { date: '2023-05-31', amount: 0, type: '' },
+    ]);
+    expect(result.end.toISODate()).toBe('2023-03-31');
+  });
+
+  it('includes two full months for zero balances', () => {
+    // No need for a special case here, the interval is 2 months because we always add 1 month for
+    // safety to the last month worth including in the report.
+    const result = calculateIntervalForAccountHistory([
+      { date: '2023-01-31', amount: 0, type: '' },
+      { date: '2023-02-28', amount: 0, type: '' },
+      { date: '2023-03-31', amount: 0, type: '' },
+      { date: '2023-04-30', amount: 0, type: '' },
+    ]);
+    expect(result.start.toISODate()).toBe('2023-01-01');
+    expect(result.end.toISODate()).toBe('2023-02-28');
+  });
 });
