@@ -24,6 +24,7 @@ const manifest: chrome.runtime.ManifestV3 = {
   web_accessible_resources: [
     {
       resources: [
+        'src/pages/content/*.js',
         'assets/js/*.js',
         'assets/css/*.css',
         'icon-128.png',
@@ -32,6 +33,14 @@ const manifest: chrome.runtime.ManifestV3 = {
         'icon-beta-128.png',
       ],
       matches: ['https://mint.intuit.com/*'],
+    },
+  ],
+  content_scripts: [
+    {
+      // Must load on any page due to SPA navigation but only activates on /trends
+      matches: ['https://mint.intuit.com/*'],
+      js: ['src/pages/content-bootstrap/index.js'],
+      css: [],
     },
   ],
 };
