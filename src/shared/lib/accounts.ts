@@ -75,7 +75,18 @@ export type BalanceHistoryProgressCallback = (progress: {
 
 export type BalanceHistoryCallbackProgress = Parameters<BalanceHistoryProgressCallback>[0];
 
+export type TrendBalanceHistoryProgressCallback = (progress: {
+  completePercentage: number;
+}) => void | Promise<void>;
+
+export type TrendBalanceHistoryCallbackProgress = Parameters<TrendBalanceHistoryProgressCallback>[0];
+
 type ProgressCallback = (progress: { complete: number; total: number }) => void | Promise<void>;
+
+type AccountIdFilter = {
+  type: 'AccountIdFilter';
+  accountId: string;
+};
 
 const ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE = {
   BankAccount: 'ASSET',
@@ -233,9 +244,9 @@ const fetchIntervalsForAccountHistory = async ({
 };
 
 /**
- * Fetch balance history for each month for an account.
+ * Fetch balance history for each month for one or more accounts.
  */
-const fetchDailyBalancesForAccount = async ({
+const fetchDailyBalances = async ({
   periods,
   accountId,
   reportType,
@@ -243,8 +254,9 @@ const fetchDailyBalancesForAccount = async ({
   onProgress,
 }: {
   periods: Interval[];
-  accountId: string;
+  accountId: string | string[];
   reportType: string;
+  excludeSpecifiedAccounts?: boolean;
   overrideApiKey?: string;
   onProgress?: ProgressCallback;
 }) => {
@@ -252,6 +264,7 @@ const fetchDailyBalancesForAccount = async ({
     throw new Error('Invalid report type.');
   }
 
+  const accountIds = Array.isArray(accountId) ? accountId : [accountId];
   const counter = {
     count: 0,
   };
@@ -263,7 +276,7 @@ const fetchDailyBalancesForAccount = async ({
           withRetry(() =>
             fetchTrends({
               reportType,
-              filters: [makeAccountIdFilter(accountId)],
+              filters: accountIds.map(makeAccountIdFilter),
               dateFilter: {
                 type: 'CUSTOM',
                 startDate: start.toISODate(),
@@ -327,7 +340,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
       ({ accountId, accountName, periods, reportType }, accountIndex) =>
         async () => {
           const balances = await withDefaultOnError<TrendEntry[]>([])(
-            fetchDailyBalancesForAccount({
+            fetchDailyBalances({
               accountId,
               periods,
               reportType,
@@ -363,6 +376,40 @@ export const fetchDailyBalancesForAllAccounts = async ({
   return balancesByAccount;
 };
 
+export const fetchDailyBalancesForTrend = async ({
+  trend,
+  onProgress,
+  overrideApiKey,
+}: {
+  trend: TrendState;
+  onProgress?: TrendBalanceHistoryProgressCallback;
+  overrideApiKey?: string;
+}) => {
+  const accounts = await withRetry(() => fetchTrendAccounts({ trend, overrideApiKey }));
+  const { reportType, fromDate, toDate } = trend;
+  const interval = Interval.fromDateTimes(DateTime.fromISO(fromDate), DateTime.fromISO(toDate));
+  const periods = interval.splitBy({
+    days: MINT_DAILY_TRENDS_MAX_DAYS,
+  }) as Interval[];
+
+  // fetch one account at a time so we don't hit the rate limit
+  const balances = await withDefaultOnError<TrendEntry[]>([])(
+    fetchDailyBalances({
+      accountId: accounts.map(({ id }) => id),
+      periods,
+      reportType,
+      overrideApiKey,
+      onProgress: ({ complete }) => {
+        onProgress?.({
+          completePercentage: complete / periods.length,
+        });
+      },
+    }),
+  );
+
+  return balances;
+};
+
 /**
  * Use internal Mint API to fetch net worth history. Return list of
  * balances for type: "ASSET" and type: "DEBT" for each month.
@@ -396,7 +443,7 @@ const fetchTrends = ({
   overrideApiKey,
 }: {
   reportType: string;
-  filters?: Record<string, string>[];
+  filters?: AccountIdFilter[];
   dateFilter?: Record<string, string>;
   offset?: number;
   limit?: number;
@@ -479,7 +526,7 @@ export const formatBalancesAsCSV = (balances: TrendEntry[], accountName?: string
   return formatCSV([header, ...rows]);
 };
 
-const makeAccountIdFilter = (accountId: string) => ({
+const makeAccountIdFilter = (accountId: string): AccountIdFilter => ({
   type: 'AccountIdFilter',
   accountId,
 });
