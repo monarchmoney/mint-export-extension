@@ -169,11 +169,7 @@ const fetchDailyBalancesForAccount = async ({
               dateFilter: {
                 type: 'CUSTOM',
                 startDate: start.toISODate(),
-                // end is really the start of the next month, so subtract one day
-                endDate:
-                  end < DateTime.now()
-                    ? end.minus({ day: 1 }).toISODate()
-                    : DateTime.now().toISODate(),
+                endDate: end < DateTime.now() ? end.toISODate() : DateTime.now().toISODate(),
               },
               overrideApiKey,
             })
