@@ -1,10 +1,12 @@
 import { ResponseStatus } from '@root/src/pages/popup/Popup';
 import { ErrorCode } from '@root/src/shared/constants/error';
-import { Action } from '@root/src/shared/hooks/useMessage';
+import { Action, Message } from '@root/src/shared/hooks/useMessage';
 import {
   fetchDailyBalancesForAllAccounts,
   formatBalancesAsCSV,
   BalanceHistoryCallbackProgress,
+  TrendState,
+  fetchDailyBalancesForTrend,
 } from '@root/src/shared/lib/accounts';
 import { throttle } from '@root/src/shared/lib/events';
 import stateStorage from '@root/src/shared/storages/stateStorage';
@@ -20,6 +22,7 @@ import reloadOnUpdate from 'virtual:reload-on-update-in-background-script';
 import 'webextension-polyfill';
 
 import * as Sentry from '@sentry/browser';
+import { ContentAction } from '../content/content-action';
 
 // @ts-ignore - https://github.com/getsentry/sentry-javascript/issues/5289#issuecomment-1368705821
 Sentry.WINDOW.document = {
@@ -49,7 +52,7 @@ reloadOnUpdate('pages/background');
 
 const THROTTLE_INTERVAL_MS = 200;
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
   if (sender.tab?.url.startsWith('chrome://')) {
     return true;
   }
@@ -69,6 +72,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleTransactionsDownload(sendResponse);
   } else if (message.action === Action.DownloadAllAccountBalances) {
     handleDownloadAllAccountBalances(sendResponse);
+  } else if (message.action === ContentAction.DownloadTrendBalances) {
+    handleDownloadTrendAccountBalances(sendResponse, message.payload as TrendState, sender.tab?.id);
   } else if (message.action === Action.DebugThrowError) {
     throw new Error('Debug error');
   } else {
@@ -190,6 +195,34 @@ const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
     });
   } catch (e) {
     await accountStorage.patch({ status: AccountsDownloadStatus.Error });
+  } finally {
+    sendResponse();
+  }
+};
+
+/** Download daily balances for the specified trend. */
+const handleDownloadTrendAccountBalances = async (
+  sendResponse: () => void,
+  trend: TrendState,
+  tabId: number,
+) => {
+  try {
+    const balances = await fetchDailyBalancesForTrend({
+      trend,
+      onProgress: ({ completePercentage }) => {
+        chrome.tabs.sendMessage(tabId, {
+          action: ContentAction.DownloadTrendBalancesProgress,
+          payload: { completePercentage },
+        });
+      },
+    });
+    const { reportType } = trend;
+    const csv = formatBalancesAsCSV({ balances, reportType });
+
+    chrome.downloads.download({
+      url: `data:text/csv,${csv}`,
+      filename: 'mint-trend-daily-balances.csv',
+    });
   } finally {
     sendResponse();
   }
