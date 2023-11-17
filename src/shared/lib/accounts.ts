@@ -46,6 +46,8 @@ type TrendEntry = {
   // this is determined by the type of report we fetch (DEBTS_TIME/ASSETS_TIME)
   // it will return different values if we decide to fetch more types of reports (e.g., SPENDING_TIME)
   type: TrendType;
+  /** Represents the negative amount in net income/worth trends. Calculated, not from Mint */
+  inverseAmount?: number;
 };
 
 type TrendsResponse = {
@@ -509,18 +511,77 @@ export const fetchTrendAccounts = async ({
   );
 };
 
-export const formatBalancesAsCSV = (balances: TrendEntry[], accountName?: string) => {
-  const header = ['Date', 'Amount', accountName && 'Account Name'].filter(Boolean);
-  const maybeAccountColumn: [string?] = accountName ? [accountName] : [];
+/**
+ * Merges paired API response into a single amount/inverseAmount entry.
+ *
+ * The API response does not include an entry for zero inverse amounts, but there is always a
+ * positive amount for each date in the trend.
+ */
+const zipTrendEntries = (trendEntries: TrendEntry[]) => {
+  const mergedTrendEntries: TrendEntry[] = [];
+  for (let i = 0; i < trendEntries.length; i += 1) {
+    const trendEntry = trendEntries[i];
+    const nextTrendEntry = trendEntries[i + 1];
+    let inverseAmount = 0;
+    // If the next entry is the inverse of this one, consume it
+    if (nextTrendEntry && nextTrendEntry.type !== trendEntry.type) {
+      i += 1;
+      inverseAmount = nextTrendEntry.amount;
+    }
+    mergedTrendEntries.push({
+      ...trendEntry,
+      inverseAmount,
+    });
+  }
+  return mergedTrendEntries;
+};
+
+export const formatBalancesAsCSV = ({
+  balances,
+  accountName,
+  reportType,
+}: {
+  balances: TrendEntry[];
+  accountName?: string;
+  reportType?: ReportType;
+}) => {
+  const header = ['Date'];
+  const columns: (keyof TrendEntry | ((trendEntry: TrendEntry) => string | number))[] = ['date'];
+  let trendEntries = balances;
+  // net income/worth reports have two rows per date, CSV needs one row with two columns
+  if (reportType?.startsWith('NET_')) {
+    // merge the positive and negative balances into one row
+    trendEntries = zipTrendEntries(balances);
+    if (reportType === 'NET_INCOME') {
+      header.push('Income', 'Expenses');
+    } else {
+      header.push('Assts', 'Debts');
+    }
+    header.push('Net');
+    columns.push('amount', 'inverseAmount', (trendEntry) =>
+      (trendEntry.amount - trendEntry.inverseAmount).toFixed(2),
+    );
+  } else {
+    header.push('Amount');
+    columns.push('amount');
+  }
+  const maybeAccountColumn: [string?] = [];
+  if (accountName) {
+    header.push('Account Name');
+    maybeAccountColumn.push(accountName);
+  }
   // remove zero balances from the end of the report leaving just the first row if all are zero
-  const rows = balances.reduceRight(
-    (acc, { date, amount }, index) => {
-      if (acc.length || amount !== 0 || index === 0) {
-        acc.unshift([date, amount, ...maybeAccountColumn]);
+  const rows = trendEntries.reduceRight(
+    (acc, trendEntry, index) => {
+      if (acc.length || trendEntry.amount !== 0 || trendEntry.inverseAmount || index === 0) {
+        acc.unshift([
+          ...columns.map((col) => (typeof col === 'function' ? col(trendEntry) : trendEntry[col])),
+          ...maybeAccountColumn,
+        ]);
       }
       return acc;
     },
-    [] as [string, number, string?][],
+    [] as (string | number)[][],
   );
 
   return formatCSV([header, ...rows]);

@@ -170,7 +170,10 @@ const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
       const seenCount = (seenAccountNames[accountName] = (seenAccountNames[accountName] || 0) + 1);
       // If there are multiple accounts with the same name, export both with distinct filenames
       const disambiguation = seenCount > 1 ? ` (${seenCount - 1})` : '';
-      zip.file(`${accountName}${disambiguation}.csv`, formatBalancesAsCSV(balances, accountName));
+      zip.file(
+        `${accountName}${disambiguation}.csv`,
+        formatBalancesAsCSV({ balances, accountName }),
+      );
     });
 
     const zipFile = await zip.generateAsync({ type: 'base64' });
