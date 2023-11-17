@@ -15,12 +15,37 @@ import {
   withRateLimit,
 } from '@root/src/shared/lib/promises';
 
+export type AccountCategory = 'DEBT' | 'ASSET';
+
+export type TrendType = 'DEBT' | 'ASSET' | 'INCOME' | 'EXPENSE';
+
+export type ReportType =
+  | 'ASSETS_TIME'
+  | 'DEBTS_TIME'
+  | 'SPENDING_TIME'
+  | 'INCOME_TIME'
+  | 'NET_INCOME'
+  | 'NET_WORTH';
+
+export type FixedDateFilter =
+  | 'LAST_7_DAYS'
+  | 'LAST_14_DAYS'
+  | 'THIS_MONTH'
+  | 'LAST_MONTH'
+  | 'LAST_3_MONTHS'
+  | 'LAST_6_MONTHS'
+  | 'LAST_12_MONTHS'
+  | 'THIS_YEAR'
+  | 'LAST_YEAR'
+  | 'ALL_TIME'
+  | 'CUSTOM';
+
 type TrendEntry = {
   amount: number;
   date: string;
   // this is determined by the type of report we fetch (DEBTS_TIME/ASSETS_TIME)
   // it will return different values if we decide to fetch more types of reports (e.g., SPENDING_TIME)
-  type: 'DEBT' | 'ASSET' | string;
+  type: TrendType;
 };
 
 type TrendsResponse = {
@@ -37,6 +62,28 @@ export type BalanceHistoryProgressCallback = (progress: {
 export type BalanceHistoryCallbackProgress = Parameters<BalanceHistoryProgressCallback>[0];
 
 type ProgressCallback = (progress: { complete: number; total: number }) => void | Promise<void>;
+
+const ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE = {
+  BankAccount: 'ASSET',
+  CashAccount: 'ASSET',
+  CreditAccount: 'DEBT',
+  InsuranceAccount: 'ASSET',
+  InvestmentAccount: 'ASSET',
+  LoanAccount: 'DEBT',
+  RealEstateAccount: 'ASSET',
+  VehicleAccount: 'ASSET',
+  OtherPropertyAccount: 'ASSET',
+} satisfies Record<string, AccountCategory>;
+
+type AccountType = keyof typeof ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE;
+
+type AccountsResponse = {
+  Account: {
+    type: AccountType;
+    id: string;
+    name: string;
+  }[];
+};
 
 /**
  * Use internal Mint "Trends" API to fetch account balance by month
@@ -326,14 +373,6 @@ const fetchTrends = ({
     },
     overrideApiKey,
   );
-
-type AccountsResponse = {
-  Account: {
-    type: string;
-    id: string;
-    name: string;
-  }[];
-};
 
 /**
  * Use internal Mint API to fetch all of user's accounts.
