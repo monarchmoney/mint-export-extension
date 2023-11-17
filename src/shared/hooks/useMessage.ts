@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
+import { ContentAction } from '../../pages/content/content-action';
 
 export enum Action {
   PopupOpened = 'POPUP_OPENED',
@@ -14,7 +15,7 @@ export enum Action {
 }
 
 export type Message<TPayload = Record<string, unknown>> = {
-  action: Action;
+  action: Action | ContentAction;
   payload?: TPayload
 };
 
