@@ -53,6 +53,20 @@ type TrendsResponse = {
   // there's more here...
 };
 
+/** State of user selections on the Mint Trends page */
+export type TrendState = {
+  /** Use with {@link deselectedAccountIds } to figure out which accounts to include in the trend */
+  reportType: ReportType;
+  /** All accounts eligible for the {@link reportType} that are NOT selected */
+  deselectedAccountIds?: string[];
+  /** Semantic representation of the {@link fromDate} {@link toDate} range */
+  fixedFilter: FixedDateFilter;
+  /** ISO start date */
+  fromDate: string;
+  /** ISO enddate */
+  toDate: string;
+};
+
 export type BalanceHistoryProgressCallback = (progress: {
   completedAccounts: number;
   totalAccounts: number;
@@ -77,12 +91,49 @@ const ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE = {
 
 type AccountType = keyof typeof ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE;
 
+type AccountTypeFilter = (accountType: AccountType) => boolean;
+
 type AccountsResponse = {
   Account: {
     type: AccountType;
     id: string;
     name: string;
   }[];
+};
+
+type FetchAccountsOptions = {
+  offset?: number;
+  limit?: number;
+  overrideApiKey?: string;
+};
+
+/**
+ * Allows filtering accounts since the API does not seem to allow negated account ID queries, yet
+ * also does not expose the selected accounts (see {@link deselectedAccountIds}).
+ */
+export const getAccountTypeFilterForTrend = (trend: TrendState): AccountTypeFilter => {
+  switch (trend.reportType) {
+    case 'INCOME_TIME':
+    case 'ASSETS_TIME':
+      return (type) => ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE[type] === 'ASSET';
+    case 'DEBTS_TIME':
+    case 'SPENDING_TIME':
+      return (type) => ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE[type] === 'DEBT';
+    case 'NET_INCOME':
+      return (type) =>
+        type !== 'VehicleAccount' &&
+        type !== 'RealEstateAccount' &&
+        type !== 'OtherPropertyAccount' &&
+        type !== 'InsuranceAccount' &&
+        // Cash account does not appear in the dropdown; it is included only when All Accounts are
+        // selected not when specific accounts are selected
+        // TODO: verify this isn't just on idpaterson's account
+        (type !== 'CashAccount' || !trend.deselectedAccountIds?.length);
+    case 'NET_WORTH':
+      return () => true;
+    default:
+      throw new Error(`Unsupported report type: ${trend.reportType}`);
+  }
 };
 
 /**
@@ -381,11 +432,7 @@ export const fetchAccounts = async ({
   offset = 0,
   limit = 1000, // mint default
   overrideApiKey,
-}: {
-  offset?: number;
-  limit?: number;
-  overrideApiKey?: string;
-}) => {
+}: FetchAccountsOptions) => {
   const response = await makeMintApiRequest<AccountsResponse>(
     `/pfm/v1/accounts?offset=${offset}&limit=${limit}`,
     {
@@ -396,6 +443,23 @@ export const fetchAccounts = async ({
   const { Account: accounts } = await response.json();
 
   return accounts;
+};
+
+/**
+ * Make sense of the {@link TrendState} by determining which accounts are selected.
+ */
+export const fetchTrendAccounts = async ({
+  trend,
+  ...options
+}: {
+  trend: TrendState;
+} & FetchAccountsOptions) => {
+  const allAccounts = await fetchAccounts({ offset: 0, ...options });
+  const accountTypeFilter = getAccountTypeFilterForTrend(trend);
+
+  return allAccounts.filter(
+    ({ id, type }) => accountTypeFilter(type) && !trend.deselectedAccountIds?.includes(id),
+  );
 };
 
 export const formatBalancesAsCSV = (balances: TrendEntry[], accountName?: string) => {

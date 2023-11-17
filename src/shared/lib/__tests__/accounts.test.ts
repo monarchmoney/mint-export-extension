@@ -5,6 +5,7 @@ import {
   fetchDailyBalancesForAllAccounts,
   fetchMonthlyBalancesForAccount,
   fetchNetWorthBalances,
+  fetchTrendAccounts,
   formatBalancesAsCSV,
 } from '../accounts';
 import { DateTime } from 'luxon';
@@ -40,6 +41,32 @@ describe('fetchAccounts', () => {
       overrideApiKey: TEST_MINT_API_KEY,
     });
     expect(accounts.length).toEqual(35);
+  });
+});
+
+describe('fetchTrendAccounts', () => {
+  it('excludes deselected accounts', async () => {
+    const allDebtAccounts = await fetchTrendAccounts({
+      trend: {
+        reportType: 'DEBTS_TIME',
+        deselectedAccountIds: [],
+        fixedFilter: 'CUSTOM',
+        fromDate: '2020-01-01',
+        toDate: '2020-01-01',
+      },
+      overrideApiKey: TEST_MINT_API_KEY,
+    });
+    const accounts = await fetchTrendAccounts({
+      trend: {
+        reportType: 'DEBTS_TIME',
+        deselectedAccountIds: ['43237333_2630847'], // a debt account
+        fixedFilter: 'CUSTOM',
+        fromDate: '2020-01-01',
+        toDate: '2020-01-01',
+      },
+      overrideApiKey: TEST_MINT_API_KEY,
+    });
+    expect(accounts.length).toEqual(allDebtAccounts.length - 1);
   });
 });
 
