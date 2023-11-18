@@ -168,6 +168,110 @@ describe('formatBalancesAsCSV', () => {
 "2020-01-01","0"
 `);
   });
+
+  it('handles net income balances', () => {
+    const result = formatBalancesAsCSV({
+      reportType: 'NET_INCOME',
+      balances: [
+        {
+          amount: 0,
+          date: '2020-01-01',
+          type: 'INCOME',
+        },
+        {
+          amount: 123.45,
+          date: '2020-01-01',
+          type: 'EXPENSE',
+        },
+        {
+          amount: 43.21,
+          date: '2020-01-02',
+          type: 'INCOME',
+        },
+        {
+          amount: 234.56,
+          date: '2020-01-03',
+          type: 'INCOME',
+        },
+      ],
+    });
+    expect(result).toEqual(`"Date","Income","Expenses","Net"
+"2020-01-01","0","123.45","-123.45"
+"2020-01-02","43.21","0","43.21"
+"2020-01-03","234.56","0","234.56"
+`);
+  });
+
+  it('trims trailing zero net income balances', () => {
+    const result = formatBalancesAsCSV({
+      reportType: 'NET_INCOME',
+      balances: [
+        {
+          amount: 0,
+          date: '2020-01-01',
+          type: 'INCOME',
+        },
+        {
+          amount: 123.45,
+          date: '2020-01-01',
+          type: 'EXPENSE',
+        },
+        {
+          amount: 0,
+          date: '2020-01-02',
+          type: 'INCOME',
+        },
+        {
+          amount: 0,
+          date: '2020-01-03',
+          type: 'INCOME',
+        },
+      ],
+    });
+    expect(result).toEqual(`"Date","Income","Expenses","Net"
+"2020-01-01","0","123.45","-123.45"
+`);
+  });
+
+  it('fixes floating point subtraction in net income balances', () => {
+    const result = formatBalancesAsCSV({
+      reportType: 'NET_INCOME',
+      balances: [
+        {
+          amount: 123.45,
+          date: '2020-01-01',
+          type: 'INCOME',
+        },
+        {
+          amount: 12.35,
+          date: '2020-01-01',
+          type: 'EXPENSE',
+        },
+      ],
+    });
+    // Not 111.10000000000001
+    expect(result).toEqual(`"Date","Income","Expenses","Net"
+"2020-01-01","123.45","12.35","111.10"
+`);
+  });
+
+  it('represents zero in the Net column as 0.00', () => {
+    // as a consequence of toFixed(2)
+    const result = formatBalancesAsCSV({
+      reportType: 'NET_INCOME',
+      balances: [
+        {
+          amount: 0,
+          date: '2020-01-01',
+          type: 'INCOME',
+        },
+      ],
+    });
+    // Not 111.10000000000001
+    expect(result).toEqual(`"Date","Income","Expenses","Net"
+"2020-01-01","0","0","0.00"
+`);
+  });
 });
 
 describe('fetchDailyBalancesForAllAccounts', () => {
