@@ -508,6 +508,10 @@ export const fetchTrendAccounts = async ({
 }: {
   trend: TrendState;
 } & FetchAccountsOptions) => {
+  // Mint knows best which accounts are eligible for the trend if nothing is selected
+  if (!trend.deselectedAccountIds?.length) {
+    return [];
+  }
   const allAccounts = await fetchAccounts({ offset: 0, ...options });
   const accountTypeFilter = getAccountTypeFilterForTrend(trend);
 
