@@ -15,7 +15,7 @@ import {
   withRateLimit,
 } from '@root/src/shared/lib/promises';
 
-export type AccountCategory = 'DEBT' | 'ASSET';
+export type AccountCategory = 'DEBT' | 'ASSET' | 'SPECIAL';
 
 export type TrendType = 'DEBT' | 'ASSET' | 'INCOME' | 'EXPENSE';
 
@@ -91,25 +91,16 @@ type AccountIdFilter = {
   accountId: string;
 };
 
-export const ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE = {
-  BankAccount: 'ASSET',
-  CashAccount: 'ASSET',
-  CreditAccount: 'DEBT',
-  InsuranceAccount: 'ASSET',
-  InvestmentAccount: 'ASSET',
-  LoanAccount: 'DEBT',
-  RealEstateAccount: 'ASSET',
-  VehicleAccount: 'ASSET',
-  OtherPropertyAccount: 'ASSET',
-} satisfies Record<string, AccountCategory>;
-
-export type AccountType = keyof typeof ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE;
-
-export const PROPERTY_ACCOUNT_TYPES: AccountType[] = [
-  'OtherPropertyAccount',
-  'RealEstateAccount',
-  'VehicleAccount',
-];
+export type AccountType =
+  | 'BankAccount'
+  | 'CashAccount'
+  | 'CreditAccount'
+  | 'InsuranceAccount'
+  | 'InvestmentAccount'
+  | 'LoanAccount'
+  | 'RealEstateAccount'
+  | 'VehicleAccount'
+  | 'OtherPropertyAccount';
 
 type AccountTypeFilter = (accountType: AccountType) => boolean;
 
@@ -130,25 +121,26 @@ type FetchAccountsOptions = {
 /**
  * Allows filtering accounts since the API does not seem to allow negated account ID queries, yet
  * also does not expose the selected accounts (see {@link deselectedAccountIds}).
+ *
+ * Logic from `accountsToFilter` data in Mint trends ui module.
  */
 export const getAccountTypeFilterForTrend = (trend: TrendState): AccountTypeFilter => {
+  const defaultFilter = (type) => type !== 'CashAccount' && type !== 'InsuranceAccount';
   switch (trend.reportType) {
     case 'INCOME_TIME':
-    case 'ASSETS_TIME':
-      return (type) => ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE[type] === 'ASSET';
-    case 'DEBTS_TIME':
     case 'SPENDING_TIME':
-      return (type) => ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE[type] === 'DEBT';
+      return (type) =>
+        type !== 'RealEstateAccount' && type !== 'VehicleAccount' && defaultFilter(type);
+    case 'ASSETS_TIME':
+      return (type) => type !== 'LoanAccount' && type !== 'CreditAccount' && defaultFilter(type);
+    case 'DEBTS_TIME':
+      return (type) =>
+        type !== 'BankAccount' && type !== 'InvestmentAccount' && defaultFilter(type);
     case 'NET_INCOME':
       return (type) =>
-        type !== 'InsuranceAccount' &&
-        !PROPERTY_ACCOUNT_TYPES.includes(type) &&
-        // Cash account does not appear in the dropdown; it is included only when All Accounts are
-        // selected not when specific accounts are selected
-        // TODO: verify this isn't just on idpaterson's account
-        (type !== 'CashAccount' || !trend.deselectedAccountIds?.length);
+        type !== 'RealEstateAccount' && type !== 'VehicleAccount' && defaultFilter(type);
     case 'NET_WORTH':
-      return () => true;
+      return defaultFilter;
     default:
       throw new Error(`Unsupported report type: ${trend.reportType}`);
   }

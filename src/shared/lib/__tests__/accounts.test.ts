@@ -1,9 +1,6 @@
 import { TEST_MINT_API_KEY } from '@root/src/shared/lib/constants';
 import {
-  ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE,
-  AccountCategory,
-  AccountType,
-  PROPERTY_ACCOUNT_TYPES,
+  ReportType,
   TrendState,
   calculateIntervalForAccountHistory,
   fetchAccounts,
@@ -351,16 +348,6 @@ describe('calculateIntervalForAccountHistory', () => {
 });
 
 describe('getAccountTypeFilterForTrend', () => {
-  const allAccountTypes: AccountType[] = [];
-  const accountTypesByCatgeory = Object.entries(ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE).reduce(
-    (acc, [accountType, category]: [AccountType, AccountCategory]) => {
-      allAccountTypes.push(accountType);
-      acc[category] = acc[category] || [];
-      acc[category].push(accountType);
-      return acc;
-    },
-    {} as Record<AccountCategory, AccountType[]>,
-  );
   const baseTrend: TrendState = {
     reportType: 'ASSETS_TIME',
     fixedFilter: 'CUSTOM',
@@ -368,48 +355,67 @@ describe('getAccountTypeFilterForTrend', () => {
     toDate: '2020-01-01',
   };
 
-  it('should exclude debt accounts for ASSETS_TIME', () => {
+  it('should exclude certain debt accounts for ASSETS_TIME', () => {
     const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType: 'ASSETS_TIME' });
-    for (const accountType of accountTypesByCatgeory.ASSET) {
-      expect(filter(accountType)).toBe(true);
-    }
-    for (const accountType of accountTypesByCatgeory.DEBT) {
-      expect(filter(accountType)).toBe(false);
-    }
+    expect(filter('BankAccount')).toBe(true);
+    expect(filter('VehicleAccount')).toBe(true);
+    expect(filter('CreditAccount')).toBe(false);
+    expect(filter('LoanAccount')).toBe(false);
   });
 
-  it('should exclude asset accounts for DEBTS_TIME', () => {
+  it('should exclude certain asset accounts for DEBTS_TIME', () => {
     const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType: 'DEBTS_TIME' });
-    for (const accountType of accountTypesByCatgeory.ASSET) {
-      expect(filter(accountType)).toBe(false);
-    }
-    for (const accountType of accountTypesByCatgeory.DEBT) {
-      expect(filter(accountType)).toBe(true);
-    }
+    expect(filter('CreditAccount')).toBe(true);
+    expect(filter('LoanAccount')).toBe(true);
+    expect(filter('BankAccount')).toBe(false);
+    expect(filter('InvestmentAccount')).toBe(false);
   });
 
-  it('should include all accounts for NET_WORTH', () => {
+  it('should exclude property accounts for SPENDING_TIME', () => {
+    const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType: 'SPENDING_TIME' });
+    expect(filter('BankAccount')).toBe(true);
+    expect(filter('CreditAccount')).toBe(true);
+    expect(filter('RealEstateAccount')).toBe(false);
+    expect(filter('VehicleAccount')).toBe(false);
+  });
+
+  it('should exclude property accounts for INCOME_TIME', () => {
+    const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType: 'INCOME_TIME' });
+    expect(filter('BankAccount')).toBe(true);
+    expect(filter('CreditAccount')).toBe(true);
+    expect(filter('RealEstateAccount')).toBe(false);
+    expect(filter('VehicleAccount')).toBe(false);
+  });
+
+  it('should include all accounts except insurance and cash for NET_WORTH', () => {
     const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType: 'NET_WORTH' });
-    for (const accountType of allAccountTypes) {
-      expect(filter(accountType)).toBe(true);
-    }
+    expect(filter('BankAccount')).toBe(true);
+    expect(filter('CreditAccount')).toBe(true);
+    expect(filter('RealEstateAccount')).toBe(true);
+    expect(filter('VehicleAccount')).toBe(true);
   });
 
-  it('should exclude property and insurance accounts for NET_INCOME', () => {
+  it('should exclude property accounts for NET_INCOME', () => {
     const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType: 'NET_INCOME' });
-    for (const accountType of allAccountTypes) {
-      expect(filter(accountType)).toBe(
-        !(accountType === 'InsuranceAccount' || PROPERTY_ACCOUNT_TYPES.includes(accountType)),
-      );
-    }
+    expect(filter('BankAccount')).toBe(true);
+    expect(filter('CreditAccount')).toBe(true);
+    expect(filter('RealEstateAccount')).toBe(false);
+    expect(filter('VehicleAccount')).toBe(false);
   });
 
-  it('should exclude cash accounts for NET_INCOME when any accounts are deselected', () => {
-    const filter = getAccountTypeFilterForTrend({
-      ...baseTrend,
-      reportType: 'NET_INCOME',
-      deselectedAccountIds: ['43237333_1544498'],
-    });
-    expect(filter('CashAccount')).toBe(false);
+  it('should exclude cash and insurance accounts for all types', () => {
+    const reportTypes: ReportType[] = [
+      'ASSETS_TIME',
+      'DEBTS_TIME',
+      'SPENDING_TIME',
+      'INCOME_TIME',
+      'NET_WORTH',
+      'NET_INCOME',
+    ];
+    for (const reportType of reportTypes) {
+      const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType });
+      expect(filter('CashAccount')).toBe(false);
+      expect(filter('InsuranceAccount')).toBe(false);
+    }
   });
 });
