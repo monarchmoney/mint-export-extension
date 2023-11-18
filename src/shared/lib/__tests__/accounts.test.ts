@@ -1,5 +1,10 @@
 import { TEST_MINT_API_KEY } from '@root/src/shared/lib/constants';
 import {
+  ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE,
+  AccountCategory,
+  AccountType,
+  PROPERTY_ACCOUNT_TYPES,
+  TrendState,
   calculateIntervalForAccountHistory,
   fetchAccounts,
   fetchDailyBalancesForAllAccounts,
@@ -7,6 +12,7 @@ import {
   fetchNetWorthBalances,
   fetchTrendAccounts,
   formatBalancesAsCSV,
+  getAccountTypeFilterForTrend,
 } from '../accounts';
 import { DateTime } from 'luxon';
 
@@ -341,5 +347,69 @@ describe('calculateIntervalForAccountHistory', () => {
     ]);
     expect(result.start.toISODate()).toBe('2023-01-01');
     expect(result.end.toISODate()).toBe('2023-02-28');
+  });
+});
+
+describe('getAccountTypeFilterForTrend', () => {
+  const allAccountTypes: AccountType[] = [];
+  const accountTypesByCatgeory = Object.entries(ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE).reduce(
+    (acc, [accountType, category]: [AccountType, AccountCategory]) => {
+      allAccountTypes.push(accountType);
+      acc[category] = acc[category] || [];
+      acc[category].push(accountType);
+      return acc;
+    },
+    {} as Record<AccountCategory, AccountType[]>,
+  );
+  const baseTrend: TrendState = {
+    reportType: 'ASSETS_TIME',
+    fixedFilter: 'CUSTOM',
+    fromDate: '2020-01-01',
+    toDate: '2020-01-01',
+  };
+
+  it('should exclude debt accounts for ASSETS_TIME', () => {
+    const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType: 'ASSETS_TIME' });
+    for (const accountType of accountTypesByCatgeory.ASSET) {
+      expect(filter(accountType)).toBe(true);
+    }
+    for (const accountType of accountTypesByCatgeory.DEBT) {
+      expect(filter(accountType)).toBe(false);
+    }
+  });
+
+  it('should exclude asset accounts for DEBTS_TIME', () => {
+    const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType: 'DEBTS_TIME' });
+    for (const accountType of accountTypesByCatgeory.ASSET) {
+      expect(filter(accountType)).toBe(false);
+    }
+    for (const accountType of accountTypesByCatgeory.DEBT) {
+      expect(filter(accountType)).toBe(true);
+    }
+  });
+
+  it('should include all accounts for NET_WORTH', () => {
+    const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType: 'NET_WORTH' });
+    for (const accountType of allAccountTypes) {
+      expect(filter(accountType)).toBe(true);
+    }
+  });
+
+  it('should exclude property and insurance accounts for NET_INCOME', () => {
+    const filter = getAccountTypeFilterForTrend({ ...baseTrend, reportType: 'NET_INCOME' });
+    for (const accountType of allAccountTypes) {
+      expect(filter(accountType)).toBe(
+        !(accountType === 'InsuranceAccount' || PROPERTY_ACCOUNT_TYPES.includes(accountType)),
+      );
+    }
+  });
+
+  it('should exclude cash accounts for NET_INCOME when any accounts are deselected', () => {
+    const filter = getAccountTypeFilterForTrend({
+      ...baseTrend,
+      reportType: 'NET_INCOME',
+      deselectedAccountIds: ['43237333_1544498'],
+    });
+    expect(filter('CashAccount')).toBe(false);
   });
 });
