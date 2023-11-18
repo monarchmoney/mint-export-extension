@@ -81,7 +81,8 @@ export type TrendBalanceHistoryProgressCallback = (progress: {
   completePercentage: number;
 }) => void | Promise<void>;
 
-export type TrendBalanceHistoryCallbackProgress = Parameters<TrendBalanceHistoryProgressCallback>[0];
+export type TrendBalanceHistoryCallbackProgress =
+  Parameters<TrendBalanceHistoryProgressCallback>[0];
 
 type ProgressCallback = (progress: { complete: number; total: number }) => void | Promise<void>;
 
@@ -90,7 +91,7 @@ type AccountIdFilter = {
   accountId: string;
 };
 
-const ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE = {
+export const ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE = {
   BankAccount: 'ASSET',
   CashAccount: 'ASSET',
   CreditAccount: 'DEBT',
@@ -102,7 +103,13 @@ const ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE = {
   OtherPropertyAccount: 'ASSET',
 } satisfies Record<string, AccountCategory>;
 
-type AccountType = keyof typeof ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE;
+export type AccountType = keyof typeof ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE;
+
+export const PROPERTY_ACCOUNT_TYPES: AccountType[] = [
+  'OtherPropertyAccount',
+  'RealEstateAccount',
+  'VehicleAccount',
+];
 
 type AccountTypeFilter = (accountType: AccountType) => boolean;
 
@@ -134,10 +141,8 @@ export const getAccountTypeFilterForTrend = (trend: TrendState): AccountTypeFilt
       return (type) => ACCOUNT_CATEGORY_BY_ACCOUNT_TYPE[type] === 'DEBT';
     case 'NET_INCOME':
       return (type) =>
-        type !== 'VehicleAccount' &&
-        type !== 'RealEstateAccount' &&
-        type !== 'OtherPropertyAccount' &&
         type !== 'InsuranceAccount' &&
+        !PROPERTY_ACCOUNT_TYPES.includes(type) &&
         // Cash account does not appear in the dropdown; it is included only when All Accounts are
         // selected not when specific accounts are selected
         // TODO: verify this isn't just on idpaterson's account
