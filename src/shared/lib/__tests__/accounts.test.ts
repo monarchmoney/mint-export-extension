@@ -72,13 +72,13 @@ describe('fetchTrendAccounts', () => {
 
 describe('formatBalancesAsCSV', () => {
   it('includes account name if provied', () => {
-    const result = formatBalancesAsCSV(
-      [
-        { amount: 123.45, date: '2021-01-01', type: '' },
-        { amount: 234.56, date: '2021-02-01', type: '' },
+    const result = formatBalancesAsCSV({
+      balances: [
+        { amount: 123.45, date: '2021-01-01', type: 'ASSET' },
+        { amount: 234.56, date: '2021-02-01', type: 'ASSET' },
       ],
-      `Mason's Account`,
-    );
+      accountName: `Mason's Account`,
+    });
     expect(result).toEqual(`"Date","Amount","Account Name"
 "2021-01-01","123.45","Mason's Account"
 "2021-02-01","234.56","Mason's Account"
@@ -86,10 +86,12 @@ describe('formatBalancesAsCSV', () => {
   });
 
   it('does not include account name if not provided', () => {
-    const result = formatBalancesAsCSV([
-      { amount: 123.45, date: '2021-01-01', type: '' },
-      { amount: 234.56, date: '2021-02-01', type: '' },
-    ]);
+    const result = formatBalancesAsCSV({
+      balances: [
+        { amount: 123.45, date: '2021-01-01', type: 'ASSET' },
+        { amount: 234.56, date: '2021-02-01', type: 'ASSET' },
+      ],
+    });
     expect(result).toEqual(`"Date","Amount"
 "2021-01-01","123.45"
 "2021-02-01","234.56"
@@ -97,41 +99,45 @@ describe('formatBalancesAsCSV', () => {
   });
 
   it('converts undefined balances to empty string', () => {
-    const result = formatBalancesAsCSV([
-      {
-        amount: undefined,
-        date: '2020-01-01',
-        type: '',
-      },
-    ]);
+    const result = formatBalancesAsCSV({
+      balances: [
+        {
+          amount: undefined,
+          date: '2020-01-01',
+          type: 'ASSET',
+        },
+      ],
+    });
     expect(result).toEqual(`"Date","Amount"
 "2020-01-01",""
 `);
   });
 
   it('trims trailing zero balances', () => {
-    const result = formatBalancesAsCSV([
-      {
-        amount: 123.45,
-        date: '2020-01-01',
-        type: '',
-      },
-      {
-        amount: 234.56,
-        date: '2020-01-02',
-        type: '',
-      },
-      {
-        amount: 0,
-        date: '2020-01-03',
-        type: '',
-      },
-      {
-        amount: 0,
-        date: '2020-01-04',
-        type: '',
-      },
-    ]);
+    const result = formatBalancesAsCSV({
+      balances: [
+        {
+          amount: 123.45,
+          date: '2020-01-01',
+          type: 'ASSET',
+        },
+        {
+          amount: 234.56,
+          date: '2020-01-02',
+          type: 'ASSET',
+        },
+        {
+          amount: 0,
+          date: '2020-01-03',
+          type: 'ASSET',
+        },
+        {
+          amount: 0,
+          date: '2020-01-04',
+          type: 'ASSET',
+        },
+      ],
+    });
     expect(result).toEqual(`"Date","Amount"
 "2020-01-01","123.45"
 "2020-01-02","234.56"
@@ -139,23 +145,25 @@ describe('formatBalancesAsCSV', () => {
   });
 
   it('leaves one row if all balances are zero', () => {
-    const result = formatBalancesAsCSV([
-      {
-        amount: 0,
-        date: '2020-01-01',
-        type: '',
-      },
-      {
-        amount: 0,
-        date: '2020-01-02',
-        type: '',
-      },
-      {
-        amount: 0,
-        date: '2020-01-03',
-        type: '',
-      },
-    ]);
+    const result = formatBalancesAsCSV({
+      balances: [
+        {
+          amount: 0,
+          date: '2020-01-01',
+          type: 'ASSET',
+        },
+        {
+          amount: 0,
+          date: '2020-01-02',
+          type: 'ASSET',
+        },
+        {
+          amount: 0,
+          date: '2020-01-03',
+          type: 'ASSET',
+        },
+      ],
+    });
     expect(result).toEqual(`"Date","Amount"
 "2020-01-01","0"
 `);
@@ -175,16 +183,16 @@ describe('fetchDailyBalancesForAllAccounts', () => {
 describe('calculateIntervalForAccountHistory', () => {
   it('starts at the first day of the first month with history', () => {
     const result = calculateIntervalForAccountHistory([
-      { date: '2023-01-31', amount: 5, type: '' },
-      { date: '2023-02-28', amount: 10, type: '' },
+      { date: '2023-01-31', amount: 5, type: 'ASSET' },
+      { date: '2023-02-28', amount: 10, type: 'ASSET' },
     ]);
     expect(result.start.toISODate()).toBe('2023-01-01');
   });
 
   it('ends today for nonzero balances', () => {
     const result = calculateIntervalForAccountHistory([
-      { date: '2023-01-31', amount: 5, type: '' },
-      { date: '2023-02-28', amount: 10, type: '' },
+      { date: '2023-01-31', amount: 5, type: 'ASSET' },
+      { date: '2023-02-28', amount: 10, type: 'ASSET' },
     ]);
     expect(result.end.toISODate()).toBe(DateTime.now().toISODate());
   });
@@ -192,28 +200,28 @@ describe('calculateIntervalForAccountHistory', () => {
   it('ends today even if the data goes beyond today', () => {
     const nextMonth = DateTime.now().plus({ month: 1 }).endOf('month').toISODate();
     const result = calculateIntervalForAccountHistory([
-      { date: '2023-01-31', amount: 5, type: '' },
-      { date: nextMonth, amount: 10, type: '' },
+      { date: '2023-01-31', amount: 5, type: 'ASSET' },
+      { date: nextMonth, amount: 10, type: 'ASSET' },
     ]);
     expect(result.end.toISODate()).toBe(DateTime.now().toISODate());
   });
 
   it('ends 1 month after the last historic nonzero monthly balance', () => {
     const result = calculateIntervalForAccountHistory([
-      { date: '2023-01-31', amount: 5, type: '' },
-      { date: '2023-02-28', amount: 10, type: '' },
-      { date: '2023-03-31', amount: 0, type: '' },
+      { date: '2023-01-31', amount: 5, type: 'ASSET' },
+      { date: '2023-02-28', amount: 10, type: 'ASSET' },
+      { date: '2023-03-31', amount: 0, type: 'ASSET' },
     ]);
     expect(result.end.toISODate()).toBe('2023-03-31');
   });
 
   it('ends 1 month after the last historic nonzero monthly balance', () => {
     const result = calculateIntervalForAccountHistory([
-      { date: '2023-01-31', amount: 5, type: '' },
-      { date: '2023-02-28', amount: 10, type: '' },
-      { date: '2023-03-31', amount: 0, type: '' },
-      { date: '2023-04-30', amount: 0, type: '' },
-      { date: '2023-05-31', amount: 0, type: '' },
+      { date: '2023-01-31', amount: 5, type: 'ASSET' },
+      { date: '2023-02-28', amount: 10, type: 'ASSET' },
+      { date: '2023-03-31', amount: 0, type: 'ASSET' },
+      { date: '2023-04-30', amount: 0, type: 'ASSET' },
+      { date: '2023-05-31', amount: 0, type: 'ASSET' },
     ]);
     expect(result.end.toISODate()).toBe('2023-03-31');
   });
@@ -222,10 +230,10 @@ describe('calculateIntervalForAccountHistory', () => {
     // No need for a special case here, the interval is 2 months because we always add 1 month for
     // safety to the last month worth including in the report.
     const result = calculateIntervalForAccountHistory([
-      { date: '2023-01-31', amount: 0, type: '' },
-      { date: '2023-02-28', amount: 0, type: '' },
-      { date: '2023-03-31', amount: 0, type: '' },
-      { date: '2023-04-30', amount: 0, type: '' },
+      { date: '2023-01-31', amount: 0, type: 'ASSET' },
+      { date: '2023-02-28', amount: 0, type: 'ASSET' },
+      { date: '2023-03-31', amount: 0, type: 'ASSET' },
+      { date: '2023-04-30', amount: 0, type: 'ASSET' },
     ]);
     expect(result.start.toISODate()).toBe('2023-01-01');
     expect(result.end.toISODate()).toBe('2023-02-28');
