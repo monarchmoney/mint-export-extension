@@ -24,7 +24,8 @@ export const isSupportedTrendReport = (type: ReportType) => {
     case 'SPENDING_TIME':
     case 'NET_INCOME':
     case 'NET_WORTH':
-      return true;
+      // Disable when filtered by category, tag, etc. because this filter is not in the trend state
+      return !document.querySelector('[data-automation-id="filter-chip"]');
     default:
       // by tag, by category, by type, etc.
       return false;
