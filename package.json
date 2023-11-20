@@ -27,7 +27,7 @@
   "dependencies": {
     "@sentry/browser": "^7.80.0",
     "@sentry/react": "^7.80.0",
-    "@sentry/vite-plugin": "^2.10.0",
+    "@sentry/vite-plugin": "^2.10.1",
     "autoprefixer": "^10.4.16",
     "clsx": "^2.0.0",
     "construct-style-sheets-polyfill": "^3.1.0",
