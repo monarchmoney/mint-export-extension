@@ -5,6 +5,8 @@ import {
   fetchDailyBalancesForAllAccounts,
   formatBalancesAsCSV,
   BalanceHistoryCallbackProgress,
+  fetchDailyBalancesForTrend,
+  TrendBalanceHistoryCallbackProgress,
 } from '@root/src/shared/lib/accounts';
 import { throttle } from '@root/src/shared/lib/events';
 import stateStorage from '@root/src/shared/storages/stateStorage';
@@ -20,7 +22,7 @@ import reloadOnUpdate from 'virtual:reload-on-update-in-background-script';
 import 'webextension-polyfill';
 
 import * as Sentry from '@sentry/browser';
-import trendStorage from '../../shared/storages/trendStorage';
+import trendStorage, { TrendDownloadStatus } from '../../shared/storages/trendStorage';
 import { getCurrentTrendState } from '../../shared/lib/trends';
 
 // @ts-ignore - https://github.com/getsentry/sentry-javascript/issues/5289#issuecomment-1368705821
@@ -73,6 +75,8 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
     handleTransactionsDownload(sendResponse);
   } else if (message.action === Action.DownloadAllAccountBalances) {
     handleDownloadAllAccountBalances(sendResponse);
+  } else if (message.action === Action.DownloadTrendBalances) {
+    handleDownloadTrendBalances(sendResponse);
   } else if (message.action === Action.DebugThrowError) {
     throw new Error('Debug error');
   } else {
@@ -228,6 +232,40 @@ const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
   }
 };
 
+/** Download daily balances for the specified trend. */
+const handleDownloadTrendBalances = async (sendResponse: () => void) => {
+  try {
+    const throttledSendDownloadTrendBalancesProgress = throttle(
+      sendDownloadTrendBalancesProgress,
+      THROTTLE_INTERVAL_MS,
+    );
+
+    const { trend } = await trendStorage.get();
+    await trendStorage.set({
+      trend,
+      status: TrendDownloadStatus.Loading,
+      progress: { completePercentage: 0 },
+    });
+    const balances = await fetchDailyBalancesForTrend({
+      trend,
+      onProgress: throttledSendDownloadTrendBalancesProgress,
+    });
+    const { reportType } = trend;
+    const csv = formatBalancesAsCSV({ balances, reportType });
+
+    chrome.downloads.download({
+      url: `data:text/csv,${csv}`,
+      filename: 'mint-trend-daily-balances.csv',
+    });
+
+    await trendStorage.patch({ status: TrendDownloadStatus.Success });
+  } catch (e) {
+    await trendStorage.patch({ status: TrendDownloadStatus.Error });
+  } finally {
+    sendResponse();
+  }
+};
+
 /**
  * Updates both the state storage and sends a message with the current progress,
  * so the popup can update the UI and we have a state to restore from if the
@@ -235,4 +273,8 @@ const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
  */
 const sendDownloadBalancesProgress = async (payload: BalanceHistoryCallbackProgress) => {
   await accountStorage.patch({ progress: payload });
+};
+
+const sendDownloadTrendBalancesProgress = async (payload: TrendBalanceHistoryCallbackProgress) => {
+  await trendStorage.patch({ progress: payload });
 };

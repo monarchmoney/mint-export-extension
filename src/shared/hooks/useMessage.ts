@@ -10,20 +10,23 @@ export enum Action {
   DownloadAllAccountBalances = 'DOWNLOAD_ALL_ACCOUNT_BALANCES',
   DownloadBalancesProgress = 'DOWNLOAD_BALANCES_PROGRESS',
   DownloadBalancesComplete = 'DOWNLOAD_BALANCES_COMPLETE',
+  DownloadTrendBalances = 'DOWNLOAD_TREND_BALANCES',
+  DownloadTrendBalancesProgress = 'DOWNLOAD_TREND_BALANCES_PROGRESS',
   // Debug actions
   DebugThrowError = 'DEBUG_THROW_ERROR',
 }
 
 export type Message<TPayload = Record<string, unknown>> = {
   action: Action;
-  payload?: TPayload
+  payload?: TPayload;
 };
 
 export const useMessageListener = <TPayload extends Record<string, unknown>>(
   action: Action,
   callback: (payload: TPayload) => void | Promise<void>,
 ) => {
-  const listenerRef = useRef<(message: Message<TPayload>, sender: unknown, sendResponse: unknown) => void>();
+  const listenerRef =
+    useRef<(message: Message<TPayload>, sender: unknown, sendResponse: unknown) => void>();
 
   useEffect(() => {
     if (listenerRef.current) {
