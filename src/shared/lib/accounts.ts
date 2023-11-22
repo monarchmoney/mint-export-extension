@@ -15,7 +15,7 @@ import {
   withRateLimit,
 } from '@root/src/shared/lib/promises';
 
-export type AccountCategory = 'DEBT' | 'ASSET' | 'SPECIAL';
+export type AccountCategory = 'DEBT' | 'ASSET';
 
 export type TrendType = 'DEBT' | 'ASSET' | 'INCOME' | 'EXPENSE';
 
@@ -283,20 +283,22 @@ const fetchDailyBalances = async ({
               },
               overrideApiKey,
             })
-              .then((response) =>
-                response.json().then(({ Trend }) =>
-                  Trend.map(({ amount, type, ...rest }) => ({
-                    ...rest,
-                    type,
-                    amount: type === 'DEBT' ? -amount : amount,
-                  })),
-                ),
-              )
-              .finally(() => {
-                counter.count += 1;
-                onProgress?.({ complete: counter.count, total: periods.length });
+              .then((response) => response.json())
+              .then(({ Trend }) => {
+                if (!Trend) {
+                  // Trend is omitted when request times out
+                  throw new Error('Trend timeout');
+                }
+                return Trend.map(({ amount, type, ...rest }) => ({
+                  ...rest,
+                  type,
+                  amount: type === 'DEBT' ? -amount : amount,
+                }));
               }),
-          ),
+          ).finally(() => {
+            counter.count += 1;
+            onProgress?.({ complete: counter.count, total: periods.length });
+          }),
     ),
   );
 
