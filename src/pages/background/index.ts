@@ -1,6 +1,6 @@
 import { ResponseStatus } from '@root/src/pages/popup/Popup';
 import { ErrorCode } from '@root/src/shared/constants/error';
-import { Action } from '@root/src/shared/hooks/useMessage';
+import { Action, Message } from '@root/src/shared/hooks/useMessage';
 import {
   fetchDailyBalancesForAllAccounts,
   formatBalancesAsCSV,
@@ -20,6 +20,8 @@ import reloadOnUpdate from 'virtual:reload-on-update-in-background-script';
 import 'webextension-polyfill';
 
 import * as Sentry from '@sentry/browser';
+import trendStorage from '../../shared/storages/trendStorage';
+import { getCurrentTrendState } from '../../shared/lib/trends';
 
 // @ts-ignore - https://github.com/getsentry/sentry-javascript/issues/5289#issuecomment-1368705821
 Sentry.WINDOW.document = {
@@ -49,7 +51,7 @@ reloadOnUpdate('pages/background');
 
 const THROTTLE_INTERVAL_MS = 200;
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
   if (sender.tab?.url.startsWith('chrome://')) {
     return true;
   }
@@ -65,6 +67,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handlePopupOpened(sendResponse);
   } else if (message.action === Action.GetMintApiKey) {
     handleMintAuthentication(sendResponse);
+  } else if (message.action === Action.GetTrendState) {
+    handleGetTrendState(sendResponse);
   } else if (message.action === Action.DownloadTransactions) {
     handleTransactionsDownload(sendResponse);
   } else if (message.action === Action.DownloadAllAccountBalances) {
@@ -124,6 +128,35 @@ const handleMintAuthentication = async (sendResponse: (args: unknown) => void) =
 function getMintApiKey() {
   return window.__shellInternal?.appExperience?.appApiKey;
 }
+
+const handleGetTrendState = async (sendResponse: (args: unknown) => void) => {
+  const [activeMintTab] = await chrome.tabs.query({
+    active: true,
+    url: 'https://mint.intuit.com/*',
+  });
+
+  // No active Mint tab, return early
+  if (!activeMintTab) {
+    sendResponse({ success: false, error: ErrorCode.MintTabNotFound });
+    return;
+  }
+
+  // Get the trend state from the page
+  const response = await chrome.scripting.executeScript({
+    target: { tabId: activeMintTab.id },
+    world: 'MAIN',
+    func: getCurrentTrendState,
+  });
+
+  const [{ result: trend }] = response;
+
+  await trendStorage.patch({ trend });
+  if (trend) {
+    sendResponse({ success: true, trend });
+  } else {
+    sendResponse({ success: false, error: ErrorCode.MintTrendStateNotFound });
+  }
+};
 
 const handleTransactionsDownload = async (sendResponse: (args: unknown) => void) => {
   const totalTransactionCount = await fetchTransactionsTotalCount();

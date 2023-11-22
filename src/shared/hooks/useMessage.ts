@@ -3,6 +3,7 @@ import { useRef, useEffect, useCallback } from 'react';
 export enum Action {
   PopupOpened = 'POPUP_OPENED',
   GetMintApiKey = 'GET_MINT_API_KEY',
+  GetTrendState = 'GET_TREND_STATE',
   // Sent by the button in the popup to start downloading transactions
   RequestTransactionsDownload = 'REQUEST_TRANSACTIONS_DOWNLOAD',
   DownloadTransactions = 'DOWNLOAD_TRANSACTIONS',
