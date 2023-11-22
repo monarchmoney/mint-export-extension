@@ -7,7 +7,12 @@ import { TrendType, TrendState, ReportType } from '../../shared/lib/accounts';
  * self-contained.
  */
 export const getCurrentTrendState = () => {
-  if (window.location.pathname.startsWith('/trends')) {
+  if (
+    // disable when not viewing the Trends page
+    window.location.pathname.startsWith('/trends') &&
+    // disable when filtered by category, tag, etc. because this filter is not in the trend state
+    !document.querySelector('[data-automation-id="filter-chip"]')
+  ) {
     try {
       const CURRENT_TREND_TYPE_LOCAL_STORAGE_KEY = 'trends-state';
       const currentTrendType = localStorage.getItem(
@@ -17,7 +22,6 @@ export const getCurrentTrendState = () => {
         localStorage.getItem(`${CURRENT_TREND_TYPE_LOCAL_STORAGE_KEY}-${currentTrendType}`) ||
           'null',
       ) as TrendState;
-      console.log('trendState', trendState);
 
       return trendState;
     } catch (e) {
