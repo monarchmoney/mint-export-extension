@@ -392,20 +392,17 @@ export const fetchDailyBalancesForTrend = async ({
     days: MINT_DAILY_TRENDS_MAX_DAYS,
   }) as Interval[];
 
-  // fetch one account at a time so we don't hit the rate limit
-  const balances = await withDefaultOnError<TrendEntry[]>([])(
-    fetchDailyBalances({
-      accountId: accounts.map(({ id }) => id),
-      periods,
-      reportType,
-      overrideApiKey,
-      onProgress: ({ complete }) => {
-        onProgress?.({
-          completePercentage: complete / periods.length,
-        });
-      },
-    }),
-  );
+  const balances = await fetchDailyBalances({
+    accountId: accounts.map(({ id }) => id),
+    periods,
+    reportType,
+    overrideApiKey,
+    onProgress: ({ complete }) => {
+      onProgress?.({
+        completePercentage: complete / periods.length,
+      });
+    },
+  });
 
   return balances;
 };
