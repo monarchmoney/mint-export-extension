@@ -12,8 +12,11 @@ export const UTM_URL_PARAMETERS = {
   utm_source: 'mint_export_extension',
 };
 
-// we may need to increase this, need to test more
-export const MINT_RATE_LIMIT_DELAY_MS = 50;
+/** Default number of API requests that can run at the same time */
+export const MINT_RATE_LIMIT_REQUESTS_PER_SECOND = 20;
+
+/** Default number of API requests that can run at the same time */
+export const MINT_RATE_LIMIT_CONCURRENT_REQUESTS = 4;
 
 // The Mint API returns daily activity when the date range is 43 days or fewer.
 export const MINT_DAILY_TRENDS_MAX_DAYS = 43;
