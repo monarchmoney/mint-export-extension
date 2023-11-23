@@ -49,8 +49,9 @@ const DownloadTrend = () => {
   if (trendStateValue.status === TrendDownloadStatus.Error) {
     return (
       <ErrorBoundary>
-        Sorry, there was an error downloading the trend. We&apos;ve been notified and are working on
-        a fix.
+        Sorry, there was an error downloading the trend balances. Note that daily trend data is less
+        likely to be available for trends that include very old transactions across a large number
+        of accounts. Please try again later or refine the trend.
       </ErrorBoundary>
     );
   }
