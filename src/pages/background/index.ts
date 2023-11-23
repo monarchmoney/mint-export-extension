@@ -270,6 +270,7 @@ const handleDownloadTrendBalances = async (sendResponse: () => void) => {
   } catch (e) {
     await trendStorage.patch({ status: TrendDownloadStatus.Error });
   } finally {
+    pendingTrendBalances = null;
     sendResponse();
   }
 };
