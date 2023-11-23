@@ -7,6 +7,7 @@ import {
   BalanceHistoryCallbackProgress,
   fetchDailyBalancesForTrend,
   TrendBalanceHistoryCallbackProgress,
+  TrendEntry,
 } from '@root/src/shared/lib/accounts';
 import { throttle } from '@root/src/shared/lib/events';
 import stateStorage from '@root/src/shared/storages/stateStorage';
@@ -232,33 +233,40 @@ const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
   }
 };
 
+let pendingTrendBalances: Promise<TrendEntry[]>;
+
 /** Download daily balances for the specified trend. */
 const handleDownloadTrendBalances = async (sendResponse: () => void) => {
   try {
-    const throttledSendDownloadTrendBalancesProgress = throttle(
-      sendDownloadTrendBalancesProgress,
-      THROTTLE_INTERVAL_MS,
-    );
+    if (pendingTrendBalances) {
+      // already downloading
+      await pendingTrendBalances;
+    } else {
+      const throttledSendDownloadTrendBalancesProgress = throttle(
+        sendDownloadTrendBalancesProgress,
+        THROTTLE_INTERVAL_MS,
+      );
+      const { trend } = await trendStorage.get();
+      await trendStorage.set({
+        trend,
+        status: TrendDownloadStatus.Loading,
+        progress: { completePercentage: 0 },
+      });
+      pendingTrendBalances = fetchDailyBalancesForTrend({
+        trend,
+        onProgress: throttledSendDownloadTrendBalancesProgress,
+      });
+      const balances = await pendingTrendBalances;
+      const { reportType } = trend;
+      const csv = formatBalancesAsCSV({ balances, reportType });
 
-    const { trend } = await trendStorage.get();
-    await trendStorage.set({
-      trend,
-      status: TrendDownloadStatus.Loading,
-      progress: { completePercentage: 0 },
-    });
-    const balances = await fetchDailyBalancesForTrend({
-      trend,
-      onProgress: throttledSendDownloadTrendBalancesProgress,
-    });
-    const { reportType } = trend;
-    const csv = formatBalancesAsCSV({ balances, reportType });
+      chrome.downloads.download({
+        url: `data:text/csv,${csv}`,
+        filename: 'mint-trend-daily-balances.csv',
+      });
 
-    chrome.downloads.download({
-      url: `data:text/csv,${csv}`,
-      filename: 'mint-trend-daily-balances.csv',
-    });
-
-    await trendStorage.patch({ status: TrendDownloadStatus.Success });
+      await trendStorage.patch({ status: TrendDownloadStatus.Success });
+    }
   } catch (e) {
     await trendStorage.patch({ status: TrendDownloadStatus.Error });
   } finally {

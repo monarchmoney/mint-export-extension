@@ -39,7 +39,7 @@ export type FixedDateFilter =
   | 'ALL_TIME'
   | 'CUSTOM';
 
-type TrendEntry = {
+export type TrendEntry = {
   amount: number;
   date: string;
   // this is determined by the type of report we fetch (DEBTS_TIME/ASSETS_TIME)
