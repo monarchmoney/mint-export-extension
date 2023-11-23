@@ -204,8 +204,8 @@ export const fetchDailyBalancesForAllAccounts = async ({
   const accounts = await withRetry(() => fetchAccounts({ overrideApiKey }));
 
   // first, fetch the range of dates we need to fetch for each account
-  const accountsWithPeriodsToFetch = await Promise.all(
-    accounts.map(async ({ id: accountId, name: accountName }) => {
+  const accountsWithPeriodsToFetch = await withRateLimit()(
+    accounts.map(({ id: accountId, name: accountName }) => async () => {
       const { periods, reportType } = await withDefaultOnError({ periods: [], reportType: '' })(
         fetchIntervalsForAccountHistory({
           accountId,
