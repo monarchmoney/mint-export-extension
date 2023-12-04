@@ -47,7 +47,7 @@
     "@types/chrome": "0.0.251",
     "@types/jest": "29.5.8",
     "@types/luxon": "3.3.4",
-    "@types/node": "18.15.11",
+    "@types/node": "20.10.3",
     "@types/pluralize": "^0.0.33",
     "@types/react": "18.2.29",
     "@types/react-dom": "18.2.15",
