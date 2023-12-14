@@ -5,7 +5,7 @@ import {
   calculateIntervalForAccountHistory,
   fetchAccounts,
   fetchDailyBalancesForAllAccounts,
-  fetchMonthlyBalancesForAccount,
+  fetchMonthlyBalances,
   fetchNetWorthBalances,
   fetchTrendAccounts,
   formatBalancesAsCSV,
@@ -13,9 +13,9 @@ import {
 } from '../accounts';
 import { DateTime } from 'luxon';
 
-describe('fetchMonthlyBalancesForAccount', () => {
+describe('fetchMonthlyBalances', () => {
   it('fetches balances by date for asset account', async () => {
-    const { balancesByDate } = await fetchMonthlyBalancesForAccount({
+    const { balancesByDate } = await fetchMonthlyBalances({
       accountId: '43237333_1544498',
       overrideApiKey: TEST_MINT_API_KEY,
     });
@@ -23,7 +23,7 @@ describe('fetchMonthlyBalancesForAccount', () => {
   });
 
   it('fetches balances for debt account', async () => {
-    const { balancesByDate } = await fetchMonthlyBalancesForAccount({
+    const { balancesByDate } = await fetchMonthlyBalances({
       accountId: '43237333_2630847',
       overrideApiKey: TEST_MINT_API_KEY,
     });

@@ -152,25 +152,28 @@ export const getAccountTypeFilterForTrend = (trend: TrendState): AccountTypeFilt
  * This is technically a paginated API, but since the limit is 1000 (> 83 years)
  * we probably don't need to worry about pagination.
  */
-export const fetchMonthlyBalancesForAccount = async ({
+export const fetchMonthlyBalances = async ({
   accountId,
+  reportType,
   offset,
   limit,
   overrideApiKey,
 }: {
-  accountId: string;
+  accountId: string | string[];
+  reportType?: ReportType;
   offset?: number;
   limit?: number;
   overrideApiKey?: string;
-}): Promise<{ balancesByDate: TrendEntry[]; reportType: string } | undefined> => {
+}): Promise<{ balancesByDate: TrendEntry[]; reportType: ReportType } | undefined> => {
   // we don't have a good way to know if an account is "asset" or "debt", so we just try both reports
   // the Mint API returns undefined if the report type doesn't match the account type
-  const tryReportTypes = ['ASSETS_TIME', 'DEBTS_TIME'];
+  const tryReportTypes: ReportType[] = reportType ? [reportType] : ['ASSETS_TIME', 'DEBTS_TIME'];
+  const accountIds = Array.isArray(accountId) ? accountId : [accountId];
 
   for (const reportType of tryReportTypes) {
     const response = await fetchTrends({
       reportType,
-      filters: [makeAccountIdFilter(accountId)],
+      filters: accountIds.map(makeAccountIdFilter),
       offset,
       limit,
       overrideApiKey,
@@ -224,9 +227,7 @@ const fetchIntervalsForAccountHistory = async ({
   overrideApiKey?: string;
 }) => {
   // fetch monthly balances so we can get start date
-  const balanceInfo = await withRetry(() =>
-    fetchMonthlyBalancesForAccount({ accountId, overrideApiKey }),
-  );
+  const balanceInfo = await withRetry(() => fetchMonthlyBalances({ accountId, overrideApiKey }));
 
   if (!balanceInfo) {
     throw new Error('Unable to fetch account history.');
@@ -254,7 +255,6 @@ const fetchDailyBalances = async ({
   periods: Interval[];
   accountId: string | string[];
   reportType: string;
-  excludeSpecifiedAccounts?: boolean;
   overrideApiKey?: string;
   onProgress?: ProgressCallback;
 }) => {
@@ -386,14 +386,27 @@ export const fetchDailyBalancesForTrend = async ({
   overrideApiKey?: string;
 }) => {
   const accounts = await withRetry(() => fetchTrendAccounts({ trend, overrideApiKey }));
-  const { reportType, fromDate, toDate } = trend;
-  const interval = Interval.fromDateTimes(DateTime.fromISO(fromDate), DateTime.fromISO(toDate));
+  const accountId = accounts.map(({ id }) => id);
+  const { reportType, fromDate, toDate, fixedFilter } = trend;
+  let interval: Interval;
+  // ALL_TIME may report a fromDate that is inaccurate by several years (e.g. 2007 when the trend
+  // data begins in 2015) so use the monthly trend to find an accurate start date
+  if (fixedFilter === 'ALL_TIME') {
+    const { balancesByDate } = await fetchMonthlyBalances({
+      accountId,
+      reportType,
+      overrideApiKey,
+    });
+    interval = calculateIntervalForAccountHistory(balancesByDate);
+  } else {
+    interval = Interval.fromDateTimes(DateTime.fromISO(fromDate), DateTime.fromISO(toDate));
+  }
   const periods = interval.splitBy({
     days: MINT_DAILY_TRENDS_MAX_DAYS,
   }) as Interval[];
 
   const balances = await fetchDailyBalances({
-    accountId: accounts.map(({ id }) => id),
+    accountId,
     periods,
     reportType,
     overrideApiKey,
