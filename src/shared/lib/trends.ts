@@ -1,31 +1,36 @@
-import { TrendState, ReportType, FixedDateFilter } from '../../shared/lib/accounts';
+import { TrendState, ReportType, FixedDateFilter, TrendType } from '../../shared/lib/accounts';
 
-type AccountFilterReactProps = {
+type TrendsUiState = {
+  reportCategory: TrendType;
+  reportType: ReportType;
+  fromDate: string;
+  toDate: string;
+  fixedFilter: FixedDateFilter;
+  accounts: {
+    id: string;
+    isSelected: boolean;
+  }[];
+};
+
+type TrendsUiReactProps = {
   children: {
     props: {
-      /** Selected account IDs and categories */
-      value: string[];
+      children: {
+        props: {
+          children: [
+            unknown,
+            {
+              props: {
+                store: {
+                  getState: () => { Trends: TrendsUiState };
+                };
+              };
+            },
+          ];
+        };
+      };
     };
   };
-};
-
-type DatePickerReactProps = {
-  props: {
-    children: [
-      unknown,
-      {
-        props: {
-          /** The ISO date string */
-          value: string;
-        };
-      },
-      unknown,
-    ];
-  };
-};
-
-type TimeFilterReactProps = {
-  children: [DatePickerReactProps, DatePickerReactProps];
 };
 
 /**
@@ -47,27 +52,12 @@ export const getCurrentTrendState = () => {
         const el = document.querySelector(selector);
         return el?.[Object.keys(el).find((key) => key.startsWith('__reactProps'))] as Props;
       };
-      const accountState = getReactProps<AccountFilterReactProps>(
-        '[data-automation-id="filter-accounts"]',
-      );
-      // For ALL_TIME charts this time range may be inaccurate (e.g. 2007 when the data only begins
-      // in 2021) but the extension is better equipped to choose the correct date with the API.
-      const timeFilterState = getReactProps<TimeFilterReactProps>(
-        '[data-automation-id="filter-time-custom"]',
-      );
-      // ReportType can also be found in react props but it does not update reliably
-      const reportType = document.querySelector('.trends-sidebar-report-selected-list-item a')
-        ?.id as ReportType;
-      const fixedFilter = (document.getElementById('select-timeframe') as HTMLSelectElement)
-        .value as FixedDateFilter;
-      const accountIds = accountState.children.props.value.filter(
-        // Only numeric account IDs (ignore selected categories like AllAccounts and BankAccounts
-        // that will evaluate to NaN)
-        (id) => +id[0] === +id[0],
-      ) as string[];
-      // This is a bit much, but can't seem to get the value reliably from child elements
-      const fromDate = timeFilterState.children[0].props.children[1].props.value;
-      const toDate = timeFilterState.children[1].props.children[1].props.value;
+      const trendsUiState =
+        getReactProps<TrendsUiReactProps>(
+          '.cg-pfm-trends-ui',
+        ).children.props.children.props.children[1].props.store.getState();
+      const { reportType, fromDate, toDate, fixedFilter, accounts } = trendsUiState.Trends;
+      const accountIds = accounts.flatMap((a) => (a.isSelected ? a.id : []));
       const trendState: TrendState = {
         accountIds,
         reportType,
