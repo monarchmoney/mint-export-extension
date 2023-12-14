@@ -54,17 +54,46 @@ type TrendsResponse = {
   // there's more here...
 };
 
+type CategoryFilterData = {
+  type: 'CATEGORY';
+  includeChildCategories: boolean;
+  categoryId: string;
+  categoryName: string;
+};
+
+type DescriptionFilterData = {
+  type: 'DESCRIPTION';
+  description: string;
+};
+
+type TagFilterData = {
+  type: 'TAG';
+  tagId: string;
+  tagName: string;
+};
+
+export type FilterData = CategoryFilterData | DescriptionFilterData | TagFilterData;
+
+export type MatchType = 'all' | 'any';
+
 /** State of user selections on the Mint Trends page */
 export type TrendState = {
   /** Selected accounts */
   accountIds?: string[];
-  /** Use with {@link deselectedAccountIds } to figure out which accounts to include in the trend */
   reportType: ReportType;
+  /** Spending and income filters, transform with {@link apiFilterForFilterData} for the API */
+  otherFilters?: FilterData[];
+  /**
+   * Whether transactions must match any or all {@link otherFilters}.
+   *
+   * Account filters always match all.
+   */
+  matchType?: MatchType;
   /** Semantic representation of the {@link fromDate} {@link toDate} range */
   fixedFilter: FixedDateFilter;
   /** ISO start date */
   fromDate: string;
-  /** ISO enddate */
+  /** ISO end date */
   toDate: string;
 };
 
@@ -89,6 +118,24 @@ type AccountIdFilter = {
   type: 'AccountIdFilter';
   accountId: string;
 };
+
+type CategoryIdFilter = {
+  type: 'CategoryIdFilter';
+  categoryId: string;
+  includeChildCategories: boolean;
+};
+
+type DescriptionNameFilter = {
+  type: 'DescriptionNameFilter';
+  description: string;
+};
+
+type TagIdFilter = {
+  type: 'TagIdFilter';
+  tagId: string;
+};
+
+type ApiFilter = AccountIdFilter | CategoryIdFilter | DescriptionNameFilter | TagIdFilter;
 
 export type AccountType =
   | 'BankAccount'
@@ -153,13 +200,15 @@ export const getAccountTypeFilterForTrend = (trend: TrendState): AccountTypeFilt
  * we probably don't need to worry about pagination.
  */
 export const fetchMonthlyBalances = async ({
-  accountId,
+  matchAllFilters,
+  matchAnyFilters,
   reportType,
   offset,
   limit,
   overrideApiKey,
 }: {
-  accountId: string | string[];
+  matchAllFilters?: ApiFilter[];
+  matchAnyFilters?: ApiFilter[];
   reportType?: ReportType;
   offset?: number;
   limit?: number;
@@ -168,12 +217,12 @@ export const fetchMonthlyBalances = async ({
   // we don't have a good way to know if an account is "asset" or "debt", so we just try both reports
   // the Mint API returns undefined if the report type doesn't match the account type
   const tryReportTypes: ReportType[] = reportType ? [reportType] : ['ASSETS_TIME', 'DEBTS_TIME'];
-  const accountIds = Array.isArray(accountId) ? accountId : [accountId];
 
   for (const reportType of tryReportTypes) {
     const response = await fetchTrends({
       reportType,
-      filters: accountIds.map(makeAccountIdFilter),
+      matchAllFilters,
+      matchAnyFilters,
       offset,
       limit,
       overrideApiKey,
@@ -227,7 +276,12 @@ const fetchIntervalsForAccountHistory = async ({
   overrideApiKey?: string;
 }) => {
   // fetch monthly balances so we can get start date
-  const balanceInfo = await withRetry(() => fetchMonthlyBalances({ accountId, overrideApiKey }));
+  const balanceInfo = await withRetry(() =>
+    fetchMonthlyBalances({
+      matchAllFilters: [makeAccountIdFilter(accountId)],
+      overrideApiKey,
+    }),
+  );
 
   if (!balanceInfo) {
     throw new Error('Unable to fetch account history.');
@@ -247,22 +301,22 @@ const fetchIntervalsForAccountHistory = async ({
  */
 const fetchDailyBalances = async ({
   periods,
-  accountId,
   reportType,
+  matchAllFilters,
+  matchAnyFilters,
   overrideApiKey,
   onProgress,
 }: {
   periods: Interval[];
-  accountId: string | string[];
-  reportType: string;
+  reportType: ReportType;
+  matchAllFilters?: ApiFilter[];
+  matchAnyFilters?: ApiFilter[];
   overrideApiKey?: string;
   onProgress?: ProgressCallback;
 }) => {
   if (!reportType) {
     throw new Error('Invalid report type.');
   }
-
-  const accountIds = Array.isArray(accountId) ? accountId : [accountId];
   const counter = {
     count: 0,
   };
@@ -274,7 +328,8 @@ const fetchDailyBalances = async ({
           withRetry(() =>
             fetchTrends({
               reportType,
-              filters: accountIds.map(makeAccountIdFilter),
+              matchAllFilters,
+              matchAnyFilters,
               dateFilter: {
                 type: 'CUSTOM',
                 startDate: start.toISODate(),
@@ -318,7 +373,10 @@ export const fetchDailyBalancesForAllAccounts = async ({
   // first, fetch the range of dates we need to fetch for each account
   const accountsWithPeriodsToFetch = await withRateLimit()(
     accounts.map(({ id: accountId, name: accountName }) => async () => {
-      const { periods, reportType } = await withDefaultOnError({ periods: [], reportType: '' })(
+      const { periods, reportType } = await withDefaultOnError({
+        periods: [] as Interval[],
+        reportType: null as ReportType,
+      })(
         fetchIntervalsForAccountHistory({
           accountId,
           overrideApiKey,
@@ -341,7 +399,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
         async () => {
           const balances = await withDefaultOnError<TrendEntry[]>([])(
             fetchDailyBalances({
-              accountId,
+              matchAllFilters: [makeAccountIdFilter(accountId)],
               periods,
               reportType,
               overrideApiKey,
@@ -385,14 +443,25 @@ export const fetchDailyBalancesForTrend = async ({
   onProgress?: TrendBalanceHistoryProgressCallback;
   overrideApiKey?: string;
 }) => {
-  const accountId = trend.accountIds;
-  const { reportType, fromDate, toDate, fixedFilter } = trend;
+  const { accountIds, matchType, otherFilters, reportType, fromDate, toDate, fixedFilter } = trend;
+  const matchAllFilters: ApiFilter[] = accountIds.map(makeAccountIdFilter);
+  const matchAnyFilters: ApiFilter[] = [];
+
+  if (otherFilters?.length) {
+    if (matchType === 'any') {
+      matchAnyFilters.push(...otherFilters.map(apiFilterForFilterData));
+    } else {
+      matchAllFilters.push(...otherFilters.map(apiFilterForFilterData));
+    }
+  }
+
   let interval: Interval;
   // ALL_TIME may report a fromDate that is inaccurate by several years (e.g. 2007 when the trend
   // data begins in 2015) so use the monthly trend to find an accurate start date
   if (fixedFilter === 'ALL_TIME') {
     const { balancesByDate } = await fetchMonthlyBalances({
-      accountId,
+      matchAllFilters,
+      matchAnyFilters,
       reportType,
       overrideApiKey,
     });
@@ -405,7 +474,8 @@ export const fetchDailyBalancesForTrend = async ({
   }) as Interval[];
 
   const balances = await fetchDailyBalances({
-    accountId,
+    matchAllFilters,
+    matchAnyFilters,
     periods,
     reportType,
     overrideApiKey,
@@ -445,14 +515,16 @@ export const fetchNetWorthBalances = async ({
 
 const fetchTrends = ({
   reportType,
-  filters = [],
+  matchAllFilters = [],
+  matchAnyFilters = [],
   dateFilter = DATE_FILTER_ALL_TIME,
   offset = 0,
   limit = 1000, // mint default
   overrideApiKey,
 }: {
   reportType: string;
-  filters?: AccountIdFilter[];
+  matchAllFilters?: (AccountIdFilter | ApiFilter)[];
+  matchAnyFilters?: ApiFilter[];
   dateFilter?: Record<string, string>;
   offset?: number;
   limit?: number;
@@ -471,7 +543,11 @@ const fetchTrends = ({
         searchFilters: [
           {
             matchAll: true,
-            filters,
+            filters: matchAllFilters,
+          },
+          {
+            matchAll: false,
+            filters: matchAnyFilters,
           },
         ],
         offset,
@@ -577,7 +653,31 @@ export const formatBalancesAsCSV = ({
   return formatCSV([header, ...rows]);
 };
 
-const makeAccountIdFilter = (accountId: string): AccountIdFilter => ({
+export const makeAccountIdFilter = (accountId: string): AccountIdFilter => ({
   type: 'AccountIdFilter',
   accountId,
 });
+
+/** Convert trend state filter data to API request filters */
+const apiFilterForFilterData = (data: FilterData): ApiFilter => {
+  switch (data.type) {
+    case 'CATEGORY':
+      return {
+        type: 'CategoryIdFilter',
+        categoryId: data.categoryId,
+        includeChildCategories: data.includeChildCategories,
+      };
+    case 'DESCRIPTION':
+      return {
+        type: 'DescriptionNameFilter',
+        description: data.description,
+      };
+    case 'TAG':
+      return {
+        type: 'TagIdFilter',
+        tagId: data.tagId,
+      };
+    default:
+      throw new Error('Unsupported filter type');
+  }
+};

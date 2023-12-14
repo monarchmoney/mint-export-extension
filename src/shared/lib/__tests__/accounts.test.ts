@@ -9,13 +9,14 @@ import {
   fetchNetWorthBalances,
   formatBalancesAsCSV,
   getAccountTypeFilterForTrend,
+  makeAccountIdFilter,
 } from '../accounts';
 import { DateTime } from 'luxon';
 
 describe('fetchMonthlyBalances', () => {
   it('fetches balances by date for asset account', async () => {
     const { balancesByDate } = await fetchMonthlyBalances({
-      accountId: '43237333_1544498',
+      matchAllFilters: [makeAccountIdFilter('43237333_1544498')],
       overrideApiKey: TEST_MINT_API_KEY,
     });
     expect(balancesByDate.length).toEqual(141);
@@ -23,7 +24,7 @@ describe('fetchMonthlyBalances', () => {
 
   it('fetches balances for debt account', async () => {
     const { balancesByDate } = await fetchMonthlyBalances({
-      accountId: '43237333_2630847',
+      matchAllFilters: [makeAccountIdFilter('43237333_2630847')],
       overrideApiKey: TEST_MINT_API_KEY,
     });
     expect(balancesByDate.length).toEqual(141);

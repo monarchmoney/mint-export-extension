@@ -1,4 +1,11 @@
-import { TrendState, ReportType, FixedDateFilter, TrendType } from '../../shared/lib/accounts';
+import {
+  TrendState,
+  ReportType,
+  FixedDateFilter,
+  TrendType,
+  FilterData,
+  MatchType,
+} from '../../shared/lib/accounts';
 
 type TrendsUiState = {
   reportCategory: TrendType;
@@ -10,6 +17,8 @@ type TrendsUiState = {
     id: string;
     isSelected: boolean;
   }[];
+  filterCategories: FilterData[];
+  matchType: MatchType;
 };
 
 type TrendsUiReactProps = {
@@ -42,9 +51,7 @@ type TrendsUiReactProps = {
 export const getCurrentTrendState = () => {
   if (
     // disable when not viewing the Trends page
-    window.location.pathname.startsWith('/trends') &&
-    // disable when filtered by category, tag, etc. because the extension does not support these
-    !document.querySelector('[data-automation-id="filter-chip"]')
+    window.location.pathname.startsWith('/trends')
   ) {
     try {
       // Return React data backing HTML elements
@@ -56,11 +63,14 @@ export const getCurrentTrendState = () => {
         getReactProps<TrendsUiReactProps>(
           '.cg-pfm-trends-ui',
         ).children.props.children.props.children[1].props.store.getState();
-      const { reportType, fromDate, toDate, fixedFilter, accounts } = trendsUiState.Trends;
+      const { reportType, fromDate, toDate, fixedFilter, accounts, filterCategories, matchType } =
+        trendsUiState.Trends;
       const accountIds = accounts.flatMap((a) => (a.isSelected ? a.id : []));
       const trendState: TrendState = {
         accountIds,
         reportType,
+        otherFilters: filterCategories,
+        matchType,
         fixedFilter,
         fromDate,
         toDate,
