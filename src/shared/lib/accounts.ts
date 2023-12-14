@@ -56,10 +56,10 @@ type TrendsResponse = {
 
 /** State of user selections on the Mint Trends page */
 export type TrendState = {
+  /** Selected accounts */
+  accountIds?: string[];
   /** Use with {@link deselectedAccountIds } to figure out which accounts to include in the trend */
   reportType: ReportType;
-  /** All accounts eligible for the {@link reportType} that are NOT selected */
-  deselectedAccountIds?: string[];
   /** Semantic representation of the {@link fromDate} {@link toDate} range */
   fixedFilter: FixedDateFilter;
   /** ISO start date */
@@ -385,8 +385,7 @@ export const fetchDailyBalancesForTrend = async ({
   onProgress?: TrendBalanceHistoryProgressCallback;
   overrideApiKey?: string;
 }) => {
-  const accounts = await withRetry(() => fetchTrendAccounts({ trend, overrideApiKey }));
-  const accountId = accounts.map(({ id }) => id);
+  const accountId = trend.accountIds;
   const { reportType, fromDate, toDate, fixedFilter } = trend;
   let interval: Interval;
   // ALL_TIME may report a fromDate that is inaccurate by several years (e.g. 2007 when the trend
@@ -500,27 +499,6 @@ export const fetchAccounts = async ({
   const { Account: accounts } = await response.json();
 
   return accounts;
-};
-
-/**
- * Make sense of the {@link TrendState} by determining which accounts are selected.
- */
-export const fetchTrendAccounts = async ({
-  trend,
-  ...options
-}: {
-  trend: TrendState;
-} & FetchAccountsOptions) => {
-  // Mint knows best which accounts are eligible for the trend if nothing is selected
-  if (!trend.deselectedAccountIds?.length) {
-    return [];
-  }
-  const allAccounts = await fetchAccounts({ offset: 0, ...options });
-  const accountTypeFilter = getAccountTypeFilterForTrend(trend);
-
-  return allAccounts.filter(
-    ({ id, type }) => accountTypeFilter(type) && !trend.deselectedAccountIds?.includes(id),
-  );
 };
 
 /**
