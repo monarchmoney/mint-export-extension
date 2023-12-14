@@ -51,7 +51,7 @@ export type TrendEntry = {
 
 type TrendsResponse = {
   Trend: TrendEntry[];
-  // there's more here...
+  metaData: unknown;
 };
 
 type CategoryFilterData = {
@@ -338,10 +338,18 @@ const fetchDailyBalances = async ({
               overrideApiKey,
             })
               .then((response) => response.json())
-              .then(({ Trend }) => {
+              .then(({ Trend, metaData }) => {
+                if (!Trend && !metaData) {
+                  throw new Error('Unexpected response');
+                }
                 if (!Trend) {
-                  // Trend is omitted when request times out
-                  throw new Error('Trend timeout');
+                  // Trend is omitted when all balances are zero in this period, so build the rows
+                  const dates = Interval.fromDateTimes(start, end).splitBy({ day: 1 });
+                  return dates.slice(1).map((date: Interval) => ({
+                    date: date.start.toISODate(),
+                    amount: 0,
+                    type: null,
+                  }));
                 }
                 return Trend.map(({ amount, type, ...rest }) => ({
                   ...rest,
