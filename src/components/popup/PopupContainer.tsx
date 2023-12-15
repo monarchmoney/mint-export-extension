@@ -16,7 +16,7 @@ import DownloadBalances from '@root/src/components/popup/DownloadBalances';
 import accountStorage, { AccountsDownloadStatus } from '@root/src/shared/storages/accountStorage';
 import DownloadTrend from './DownloadTrend';
 import { isSupportedTrendReport } from '../../shared/lib/trends';
-import trendStorage from '../../shared/storages/trendStorage';
+import trendStorage, { TrendDownloadStatus } from '../../shared/storages/trendStorage';
 
 interface Page {
   title: string;
@@ -40,9 +40,18 @@ const PAGE_TO_COMPONENT: Record<PageKey, Page> = {
 
 const PopupContainer = ({ children }: React.PropsWithChildren) => {
   const { currentPage, downloadTransactionsStatus } = useStorage(stateStorage);
-  const { trend } = useStorage(trendStorage);
+  const { trend, status: trendStatus } = useStorage(trendStorage);
   const { status, userData } = usePopupContext();
   const sendMessage = useMessageSender();
+  let showPage = currentPage;
+
+  // Trend download is likely to be completed multiple times in a row; do not require the user to
+  // click the back arrow after every download if the popup was closed.
+  if (currentPage === 'downloadTrend' && trendStatus === TrendDownloadStatus.Success) {
+    showPage = undefined;
+    stateStorage.patch({ currentPage: undefined });
+    trendStorage.patch({ status: TrendDownloadStatus.Idle });
+  }
 
   const onDownloadTransactions = useCallback(async () => {
     await stateStorage.patch({
@@ -154,15 +163,15 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
     onDownloadAccountBalanceHistory,
   ]);
 
-  const { component: PageComponent, title: pageTitle } = PAGE_TO_COMPONENT[currentPage] ?? {};
+  const { component: PageComponent, title: pageTitle } = PAGE_TO_COMPONENT[showPage] ?? {};
 
   // 💀
   const showBackArrow =
-    currentPage === 'downloadTransactions'
+    showPage === 'downloadTransactions'
       ? downloadTransactionsStatus !== ResponseStatus.Loading
-      : currentPage === 'downloadBalances'
+      : showPage === 'downloadBalances'
       ? downloadTransactionsStatus !== ResponseStatus.Loading
-      : !!currentPage; // there's a page that's not index (index is undefined)
+      : !!showPage; // there's a page that's not index (index is undefined)
 
   return (
     <div className="flex flex-col">
