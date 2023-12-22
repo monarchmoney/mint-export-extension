@@ -37,6 +37,13 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
   const sendMessage = useMessageSender();
 
   const onDownloadTransactions = useCallback(async () => {
+    const { downloadTransactionsStatus } = await stateStorage.get();
+    if (downloadTransactionsStatus === AccountsDownloadStatus.Loading) {
+      await stateStorage.patch({
+        currentPage: 'downloadTransactions',
+      });
+      return;
+    }
     await stateStorage.patch({
       currentPage: 'downloadTransactions',
       downloadTransactionsStatus: ResponseStatus.Loading,
@@ -54,6 +61,13 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
   }, [sendMessage]);
 
   const onDownloadAccountBalanceHistory = useCallback(async () => {
+    const { status } = await accountStorage.get();
+    if (status === AccountsDownloadStatus.Loading) {
+      await stateStorage.patch({
+        currentPage: 'downloadBalances',
+      });
+      return;
+    }
     await accountStorage.clear();
 
     await stateStorage.patch({
