@@ -195,8 +195,11 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
     } = accountStorage.getSnapshot();
     if (status === AccountsDownloadStatus.Loading) {
       setTimeout(async () => {
-        const { progress } = await accountStorage.get();
-        if (completePercentage === progress.completePercentage) {
+        const { status, progress } = await accountStorage.get();
+        if (
+          status === AccountsDownloadStatus.Loading &&
+          completePercentage === progress.completePercentage
+        ) {
           await accountStorage.patch({
             status: AccountsDownloadStatus.Error,
           });
@@ -212,6 +215,24 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
         });
       }
     }, 30_000);
+  } else if (currentPage === 'downloadTrend') {
+    const {
+      status,
+      progress: { completePercentage },
+    } = trendStorage.getSnapshot();
+    if (status === TrendDownloadStatus.Loading) {
+      setTimeout(async () => {
+        const { status, progress } = await trendStorage.get();
+        if (
+          status === TrendDownloadStatus.Loading &&
+          completePercentage === progress.completePercentage
+        ) {
+          await trendStorage.patch({
+            status: TrendDownloadStatus.Error,
+          });
+        }
+      }, 5_000); // 5 seconds is enough since there is no networking before progress begins
+    }
   }
 
   return (
