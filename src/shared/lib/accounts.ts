@@ -172,20 +172,18 @@ const fetchDailyBalancesForAccount = async ({
               },
               overrideApiKey,
             })
-              .then((response) =>
-                response.json().then(({ Trend }) =>
-                  Trend.map(({ amount, type, ...rest }) => ({
-                    ...rest,
-                    type,
-                    amount: type === 'DEBT' ? -amount : amount,
-                  })),
-                ),
-              )
-              .finally(() => {
-                counter.count += 1;
-                onProgress?.({ complete: counter.count, total: periods.length });
-              }),
-          ),
+              .then((response) => response.json())
+              .then(({ Trend }) =>
+                Trend.map(({ amount, type, ...rest }) => ({
+                  ...rest,
+                  type,
+                  amount: type === 'DEBT' ? -amount : amount,
+                })),
+              ),
+          ).finally(() => {
+            counter.count += 1;
+            onProgress?.({ complete: counter.count, total: periods.length });
+          }),
     ),
   );
 
