@@ -54,6 +54,13 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
   }
 
   const onDownloadTransactions = useCallback(async () => {
+    const { downloadTransactionsStatus } = await stateStorage.get();
+    if (downloadTransactionsStatus === AccountsDownloadStatus.Loading) {
+      await stateStorage.patch({
+        currentPage: 'downloadTransactions',
+      });
+      return;
+    }
     await stateStorage.patch({
       currentPage: 'downloadTransactions',
       downloadTransactionsStatus: ResponseStatus.Loading,
@@ -71,6 +78,13 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
   }, [sendMessage]);
 
   const onDownloadAccountBalanceHistory = useCallback(async () => {
+    const { status } = await accountStorage.get();
+    if (status === AccountsDownloadStatus.Loading) {
+      await stateStorage.patch({
+        currentPage: 'downloadBalances',
+      });
+      return;
+    }
     await accountStorage.clear();
 
     await stateStorage.patch({
@@ -172,6 +186,33 @@ const PopupContainer = ({ children }: React.PropsWithChildren) => {
       : showPage === 'downloadBalances'
       ? downloadTransactionsStatus !== ResponseStatus.Loading
       : !!showPage; // there's a page that's not index (index is undefined)
+
+  // Make sure it's actually running
+  if (currentPage === 'downloadBalances') {
+    const {
+      status,
+      progress: { completePercentage },
+    } = accountStorage.getSnapshot();
+    if (status === AccountsDownloadStatus.Loading) {
+      setTimeout(async () => {
+        const { progress } = await accountStorage.get();
+        if (completePercentage === progress.completePercentage) {
+          await accountStorage.patch({
+            status: AccountsDownloadStatus.Error,
+          });
+        }
+      }, 15_000);
+    }
+  } else if (currentPage === 'downloadTransactions') {
+    setTimeout(async () => {
+      const { downloadTransactionsStatus } = await stateStorage.get();
+      if (downloadTransactionsStatus === AccountsDownloadStatus.Loading) {
+        await stateStorage.patch({
+          downloadTransactionsStatus: AccountsDownloadStatus.Error,
+        });
+      }
+    }, 30_000);
+  }
 
   return (
     <div className="flex flex-col">
