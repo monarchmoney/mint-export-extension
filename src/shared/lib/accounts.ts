@@ -5,7 +5,6 @@ import {
   DATE_FILTER_ALL_TIME,
   MINT_DAILY_TRENDS_MAX_DAYS,
   MINT_HEADERS,
-  MINT_RATE_LIMIT_DELAY_MS,
 } from '@root/src/shared/lib/constants';
 import { formatCSV } from '@root/src/shared/lib/csv';
 import { withRetry } from '@root/src/shared/lib/retry';
@@ -158,7 +157,7 @@ const fetchDailyBalancesForAccount = async ({
     count: 0,
   };
 
-  const dailyBalancesByPeriod = await withRateLimit({ delayMs: MINT_RATE_LIMIT_DELAY_MS })(
+  const dailyBalancesByPeriod = await withRateLimit()(
     periods.map(
       ({ start, end }) =>
         () =>
@@ -205,8 +204,8 @@ export const fetchDailyBalancesForAllAccounts = async ({
   const accounts = await withRetry(() => fetchAccounts({ overrideApiKey }));
 
   // first, fetch the range of dates we need to fetch for each account
-  const accountsWithPeriodsToFetch = await Promise.all(
-    accounts.map(async ({ id: accountId, name: accountName }) => {
+  const accountsWithPeriodsToFetch = await withRateLimit()(
+    accounts.map(({ id: accountId, name: accountName }) => async () => {
       const { periods, reportType } = await withDefaultOnError({ periods: [], reportType: '' })(
         fetchIntervalsForAccountHistory({
           accountId,
