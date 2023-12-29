@@ -90,6 +90,10 @@ const Popup = () => {
     } else {
       await authenticateUser(apiKey);
     }
+
+    await sendMessage({
+      action: Action.GetTrendState,
+    });
   };
 
   const authenticateOnDashboard = async () => {
