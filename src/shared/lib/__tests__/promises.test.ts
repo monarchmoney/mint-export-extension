@@ -9,7 +9,7 @@ describe('withRateLimit', () => {
     };
 
     const startTime = new Date().getTime();
-    await withRateLimit({ delayMs: 500 })([request, request, request]);
+    await withRateLimit({ rate: 2 })([request, request, request]);
     const endTime = new Date().getTime();
 
     expect(endTime - startTime).toBeGreaterThan(1000);
