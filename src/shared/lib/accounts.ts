@@ -146,6 +146,7 @@ const fetchDailyBalancesForAccount = async ({
   periods: Interval[];
   accountId: string;
   reportType: string;
+  fiName: string;
   overrideApiKey?: string;
   onProgress?: ProgressCallback;
 }) => {
@@ -203,14 +204,14 @@ export const fetchDailyBalancesForAllAccounts = async ({
 
   // first, fetch the range of dates we need to fetch for each account
   const accountsWithPeriodsToFetch = await withRateLimit()(
-    accounts.map(({ id: accountId, name: accountName }) => async () => {
+    accounts.map(({ id: accountId, name: accountName, fiName: fiName }) => async () => {
       const { periods, reportType } = await withDefaultOnError({ periods: [], reportType: '' })(
         fetchIntervalsForAccountHistory({
           accountId,
           overrideApiKey,
         }),
       );
-      return { periods, reportType, accountId, accountName };
+      return { periods, reportType, accountId, accountName, fiName };
     }),
   );
 
@@ -223,7 +224,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
   // fetch one account at a time so we don't hit the rate limit
   const balancesByAccount = await resolveSequential(
     accountsWithPeriodsToFetch.map(
-      ({ accountId, accountName, periods, reportType }, accountIndex) =>
+      ({ accountId, accountName, periods, reportType, fiName }, accountIndex) =>
         async () => {
           const balances = await withDefaultOnError<TrendEntry[]>([])(
             fetchDailyBalancesForAccount({
@@ -231,6 +232,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
               periods,
               reportType,
               overrideApiKey,
+              fiName,
               onProgress: ({ complete }) => {
                 // this is the progress handler for *each* account, so we need to sum up the results before calling onProgress
 
@@ -254,6 +256,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
           return {
             balances,
             accountName,
+            fiName,
           };
         },
     ),
@@ -329,6 +332,7 @@ type AccountsResponse = {
     type: string;
     id: string;
     name: string;
+    fiName: string;
   }[];
 };
 
