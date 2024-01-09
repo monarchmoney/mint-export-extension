@@ -160,7 +160,7 @@ const fetchDailyBalancesForAccount = async ({
 
   const dailyBalancesByPeriod = await withRateLimit()(
     periods.map(
-      ({ start, end }) =>
+      ({ start, end }, index) =>
         () =>
           withRetry(() =>
             fetchTrends({
@@ -169,7 +169,11 @@ const fetchDailyBalancesForAccount = async ({
               dateFilter: {
                 type: 'CUSTOM',
                 startDate: start.toISODate(),
-                endDate: end < DateTime.now() ? end.toISODate() : DateTime.now().toISODate(),
+                endDate:
+                  end < DateTime.now()
+                    ? // Eliminate overlap between periods w/o losing the last day of the last period
+                      end.minus({ day: index < periods.length - 1 ? 1 : 0 }).toISODate()
+                    : DateTime.now().toISODate(),
               },
               overrideApiKey,
             })
