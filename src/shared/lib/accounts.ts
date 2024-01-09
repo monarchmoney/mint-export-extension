@@ -14,17 +14,87 @@ import {
   withRateLimit,
 } from '@root/src/shared/lib/promises';
 
-type TrendEntry = {
+export type AccountCategory = 'DEBT' | 'ASSET';
+
+export type TrendType = 'DEBT' | 'ASSET' | 'INCOME' | 'EXPENSE';
+
+export type ReportType =
+  | 'ASSETS_TIME'
+  | 'DEBTS_TIME'
+  | 'SPENDING_TIME'
+  | 'INCOME_TIME'
+  | 'NET_INCOME'
+  | 'NET_WORTH';
+
+export type FixedDateFilter =
+  | 'LAST_7_DAYS'
+  | 'LAST_14_DAYS'
+  | 'THIS_MONTH'
+  | 'LAST_MONTH'
+  | 'LAST_3_MONTHS'
+  | 'LAST_6_MONTHS'
+  | 'LAST_12_MONTHS'
+  | 'THIS_YEAR'
+  | 'LAST_YEAR'
+  | 'ALL_TIME'
+  | 'CUSTOM';
+
+export type TrendEntry = {
   amount: number;
   date: string;
   // this is determined by the type of report we fetch (DEBTS_TIME/ASSETS_TIME)
   // it will return different values if we decide to fetch more types of reports (e.g., SPENDING_TIME)
-  type: 'DEBT' | 'ASSET' | string;
+  type: TrendType;
+  /** Represents the negative amount in net income/worth trends. Calculated, not from Mint */
+  inverseAmount?: number;
 };
 
 type TrendsResponse = {
   Trend: TrendEntry[];
-  // there's more here...
+  metaData: unknown;
+};
+
+type CategoryFilterData = {
+  type: 'CATEGORY';
+  includeChildCategories: boolean;
+  categoryId: string;
+  categoryName: string;
+};
+
+type DescriptionFilterData = {
+  type: 'DESCRIPTION';
+  description: string;
+};
+
+type TagFilterData = {
+  type: 'TAG';
+  tagId: string;
+  tagName: string;
+};
+
+export type FilterData = CategoryFilterData | DescriptionFilterData | TagFilterData;
+
+export type MatchType = 'all' | 'any';
+
+/** State of user selections on the Mint Trends page */
+export type TrendState = {
+  /** Selected accounts */
+  accountIds?: string[];
+  reportType: ReportType;
+  /** Spending and income filters, transform with {@link apiFilterForFilterData} for the API */
+  otherFilters?: FilterData[];
+  /**
+   * Whether transactions must match any or all {@link otherFilters}.
+   *
+   * Account filters always match all.
+   */
+  matchType?: MatchType;
+  /** Semantic representation of the {@link fromDate} {@link toDate} range */
+  fixedFilter: FixedDateFilter;
+  /** ISO start date */
+  fromDate: string;
+  /** ISO end date */
+  toDate: string;
 };
 
 export type BalanceHistoryProgressCallback = (progress: {
@@ -35,7 +105,93 @@ export type BalanceHistoryProgressCallback = (progress: {
 
 export type BalanceHistoryCallbackProgress = Parameters<BalanceHistoryProgressCallback>[0];
 
+export type TrendBalanceHistoryProgressCallback = (progress: {
+  completePercentage: number;
+}) => void | Promise<void>;
+
+export type TrendBalanceHistoryCallbackProgress =
+  Parameters<TrendBalanceHistoryProgressCallback>[0];
+
 type ProgressCallback = (progress: { complete: number; total: number }) => void | Promise<void>;
+
+type AccountIdFilter = {
+  type: 'AccountIdFilter';
+  accountId: string;
+};
+
+type CategoryIdFilter = {
+  type: 'CategoryIdFilter';
+  categoryId: string;
+  includeChildCategories: boolean;
+};
+
+type DescriptionNameFilter = {
+  type: 'DescriptionNameFilter';
+  description: string;
+};
+
+type TagIdFilter = {
+  type: 'TagIdFilter';
+  tagId: string;
+};
+
+type ApiFilter = AccountIdFilter | CategoryIdFilter | DescriptionNameFilter | TagIdFilter;
+
+export type AccountType =
+  | 'BankAccount'
+  | 'CashAccount'
+  | 'CreditAccount'
+  | 'InsuranceAccount'
+  | 'InvestmentAccount'
+  | 'LoanAccount'
+  | 'RealEstateAccount'
+  | 'VehicleAccount'
+  | 'OtherPropertyAccount';
+
+type AccountTypeFilter = (accountType: AccountType) => boolean;
+
+type AccountsResponse = {
+  Account: {
+    type: AccountType;
+    id: string;
+    name: string;
+    fiName: string;
+  }[];
+};
+
+type FetchAccountsOptions = {
+  offset?: number;
+  limit?: number;
+  overrideApiKey?: string;
+};
+
+/**
+ * Allows filtering accounts since the API does not seem to allow negated account ID queries, yet
+ * also does not expose the selected accounts (see {@link deselectedAccountIds}).
+ *
+ * Logic from `accountsToFilter` data in Mint trends ui module.
+ */
+export const getAccountTypeFilterForTrend = (trend: TrendState): AccountTypeFilter => {
+  const defaultFilter = (type) => type !== 'CashAccount' && type !== 'InsuranceAccount';
+  switch (trend.reportType) {
+    case 'INCOME_TIME':
+    case 'SPENDING_TIME':
+      return (type) =>
+        type !== 'RealEstateAccount' && type !== 'VehicleAccount' && defaultFilter(type);
+    case 'ASSETS_TIME':
+      return (type) => type !== 'LoanAccount' && type !== 'CreditAccount' && defaultFilter(type);
+    case 'DEBTS_TIME':
+      return (type) =>
+        type !== 'BankAccount' && type !== 'InvestmentAccount' && defaultFilter(type);
+    case 'NET_INCOME':
+      return (type) =>
+        type !== 'RealEstateAccount' && type !== 'VehicleAccount' && defaultFilter(type);
+    case 'NET_WORTH':
+      return defaultFilter;
+    default:
+      throw new Error(`Unsupported report type: ${trend.reportType}`);
+  }
+};
 
 /**
  * Use internal Mint "Trends" API to fetch account balance by month
@@ -44,25 +200,30 @@ type ProgressCallback = (progress: { complete: number; total: number }) => void 
  * This is technically a paginated API, but since the limit is 1000 (> 83 years)
  * we probably don't need to worry about pagination.
  */
-export const fetchMonthlyBalancesForAccount = async ({
-  accountId,
+export const fetchMonthlyBalances = async ({
+  matchAllFilters,
+  matchAnyFilters,
+  reportType,
   offset,
   limit,
   overrideApiKey,
 }: {
-  accountId: string;
+  matchAllFilters?: ApiFilter[];
+  matchAnyFilters?: ApiFilter[];
+  reportType?: ReportType;
   offset?: number;
   limit?: number;
   overrideApiKey?: string;
-}): Promise<{ balancesByDate: TrendEntry[]; reportType: string } | undefined> => {
+}): Promise<{ balancesByDate: TrendEntry[]; reportType: ReportType } | undefined> => {
   // we don't have a good way to know if an account is "asset" or "debt", so we just try both reports
   // the Mint API returns undefined if the report type doesn't match the account type
-  const tryReportTypes = ['ASSETS_TIME', 'DEBTS_TIME'];
+  const tryReportTypes: ReportType[] = reportType ? [reportType] : ['ASSETS_TIME', 'DEBTS_TIME'];
 
   for (const reportType of tryReportTypes) {
     const response = await fetchTrends({
       reportType,
-      filters: [makeAccountIdFilter(accountId)],
+      matchAllFilters,
+      matchAnyFilters,
       offset,
       limit,
       overrideApiKey,
@@ -117,7 +278,10 @@ const fetchIntervalsForAccountHistory = async ({
 }) => {
   // fetch monthly balances so we can get start date
   const balanceInfo = await withRetry(() =>
-    fetchMonthlyBalancesForAccount({ accountId, overrideApiKey }),
+    fetchMonthlyBalances({
+      matchAllFilters: [makeAccountIdFilter(accountId)],
+      overrideApiKey,
+    }),
   );
 
   if (!balanceInfo) {
@@ -134,26 +298,27 @@ const fetchIntervalsForAccountHistory = async ({
 };
 
 /**
- * Fetch balance history for each month for an account.
+ * Fetch balance history for each month for one or more accounts.
  */
-const fetchDailyBalancesForAccount = async ({
+const fetchDailyBalances = async ({
   periods,
-  accountId,
   reportType,
+  matchAllFilters,
+  matchAnyFilters,
   overrideApiKey,
   onProgress,
 }: {
   periods: Interval[];
-  accountId: string;
-  reportType: string;
-  fiName: string;
+  reportType: ReportType;
+  matchAllFilters?: ApiFilter[];
+  matchAnyFilters?: ApiFilter[];
+  fiName?: string;
   overrideApiKey?: string;
   onProgress?: ProgressCallback;
 }) => {
   if (!reportType) {
     throw new Error('Invalid report type.');
   }
-
   const counter = {
     count: 0,
   };
@@ -165,7 +330,8 @@ const fetchDailyBalancesForAccount = async ({
           withRetry(() =>
             fetchTrends({
               reportType,
-              filters: [makeAccountIdFilter(accountId)],
+              matchAllFilters,
+              matchAnyFilters,
               dateFilter: {
                 type: 'CUSTOM',
                 startDate: start.toISODate(),
@@ -178,13 +344,25 @@ const fetchDailyBalancesForAccount = async ({
               overrideApiKey,
             })
               .then((response) => response.json())
-              .then(({ Trend }) =>
-                Trend.map(({ amount, type, ...rest }) => ({
+              .then(({ Trend, metaData }) => {
+                if (!Trend && !metaData) {
+                  throw new Error('Unexpected response');
+                }
+                if (!Trend) {
+                  // Trend is omitted when all balances are zero in this period, so build the rows
+                  const dates = Interval.fromDateTimes(start, end).splitBy({ day: 1 });
+                  return dates.slice(1).map((date: Interval) => ({
+                    date: date.start.toISODate(),
+                    amount: 0,
+                    type: null,
+                  }));
+                }
+                return Trend.map(({ amount, type, ...rest }) => ({
                   ...rest,
                   type,
                   amount: type === 'DEBT' ? -amount : amount,
-                })),
-              ),
+                }));
+              }),
           ).finally(() => {
             counter.count += 1;
             onProgress?.({ complete: counter.count, total: periods.length });
@@ -208,8 +386,11 @@ export const fetchDailyBalancesForAllAccounts = async ({
 
   // first, fetch the range of dates we need to fetch for each account
   const accountsWithPeriodsToFetch = await withRateLimit()(
-    accounts.map(({ id: accountId, name: accountName, fiName: fiName }) => async () => {
-      const { periods, reportType } = await withDefaultOnError({ periods: [], reportType: '' })(
+    accounts.map(({ id: accountId, name: accountName, fiName }) => async () => {
+      const { periods, reportType } = await withDefaultOnError({
+        periods: [] as Interval[],
+        reportType: null as ReportType,
+      })(
         fetchIntervalsForAccountHistory({
           accountId,
           overrideApiKey,
@@ -231,8 +412,8 @@ export const fetchDailyBalancesForAllAccounts = async ({
       ({ accountId, accountName, periods, reportType, fiName }, accountIndex) =>
         async () => {
           const balances = await withDefaultOnError<TrendEntry[]>([])(
-            fetchDailyBalancesForAccount({
-              accountId,
+            fetchDailyBalances({
+              matchAllFilters: [makeAccountIdFilter(accountId)],
               periods,
               reportType,
               overrideApiKey,
@@ -269,6 +450,61 @@ export const fetchDailyBalancesForAllAccounts = async ({
   return balancesByAccount;
 };
 
+export const fetchDailyBalancesForTrend = async ({
+  trend,
+  onProgress,
+  overrideApiKey,
+}: {
+  trend: TrendState;
+  onProgress?: TrendBalanceHistoryProgressCallback;
+  overrideApiKey?: string;
+}) => {
+  const { accountIds, matchType, otherFilters, reportType, fromDate, toDate, fixedFilter } = trend;
+  const matchAllFilters: ApiFilter[] = accountIds.map(makeAccountIdFilter);
+  const matchAnyFilters: ApiFilter[] = [];
+
+  if (otherFilters?.length) {
+    if (matchType === 'any') {
+      matchAnyFilters.push(...otherFilters.map(apiFilterForFilterData));
+    } else {
+      matchAllFilters.push(...otherFilters.map(apiFilterForFilterData));
+    }
+  }
+
+  let interval: Interval;
+  // ALL_TIME may report a fromDate that is inaccurate by several years (e.g. 2007 when the trend
+  // data begins in 2015) so use the monthly trend to find an accurate start date
+  if (fixedFilter === 'ALL_TIME') {
+    const { balancesByDate } = await fetchMonthlyBalances({
+      matchAllFilters,
+      matchAnyFilters,
+      reportType,
+      overrideApiKey,
+    });
+    interval = calculateIntervalForAccountHistory(balancesByDate);
+  } else {
+    interval = Interval.fromDateTimes(DateTime.fromISO(fromDate), DateTime.fromISO(toDate));
+  }
+  const periods = interval.splitBy({
+    days: MINT_DAILY_TRENDS_MAX_DAYS,
+  }) as Interval[];
+
+  const balances = await fetchDailyBalances({
+    matchAllFilters,
+    matchAnyFilters,
+    periods,
+    reportType,
+    overrideApiKey,
+    onProgress: ({ complete }) => {
+      onProgress?.({
+        completePercentage: complete / periods.length,
+      });
+    },
+  });
+
+  return balances;
+};
+
 /**
  * Use internal Mint API to fetch net worth history. Return list of
  * balances for type: "ASSET" and type: "DEBT" for each month.
@@ -295,14 +531,16 @@ export const fetchNetWorthBalances = async ({
 
 const fetchTrends = ({
   reportType,
-  filters = [],
+  matchAllFilters = [],
+  matchAnyFilters = [],
   dateFilter = DATE_FILTER_ALL_TIME,
   offset = 0,
   limit = 1000, // mint default
   overrideApiKey,
 }: {
   reportType: string;
-  filters?: Record<string, string>[];
+  matchAllFilters?: (AccountIdFilter | ApiFilter)[];
+  matchAnyFilters?: ApiFilter[];
   dateFilter?: Record<string, string>;
   offset?: number;
   limit?: number;
@@ -321,7 +559,11 @@ const fetchTrends = ({
         searchFilters: [
           {
             matchAll: true,
-            filters,
+            filters: matchAllFilters,
+          },
+          {
+            matchAll: false,
+            filters: matchAnyFilters,
           },
         ],
         offset,
@@ -331,15 +573,6 @@ const fetchTrends = ({
     overrideApiKey,
   );
 
-type AccountsResponse = {
-  Account: {
-    type: string;
-    id: string;
-    name: string;
-    fiName: string;
-  }[];
-};
-
 /**
  * Use internal Mint API to fetch all of user's accounts.
  */
@@ -347,11 +580,7 @@ export const fetchAccounts = async ({
   offset = 0,
   limit = 1000, // mint default
   overrideApiKey,
-}: {
-  offset?: number;
-  limit?: number;
-  overrideApiKey?: string;
-}) => {
+}: FetchAccountsOptions) => {
   const response = await makeMintApiRequest<AccountsResponse>(
     `/pfm/v1/accounts?offset=${offset}&limit=${limit}`,
     {
@@ -364,24 +593,107 @@ export const fetchAccounts = async ({
   return accounts;
 };
 
-export const formatBalancesAsCSV = (balances: TrendEntry[], accountName?: string) => {
-  const header = ['Date', 'Amount', accountName && 'Account Name'].filter(Boolean);
-  const maybeAccountColumn: [string?] = accountName ? [accountName] : [];
+/**
+ * Merges paired API response into a single amount/inverseAmount entry.
+ *
+ * The API response does not include an entry for zero inverse amounts, but there is always a
+ * positive amount for each date in the trend.
+ */
+const zipTrendEntries = (trendEntries: TrendEntry[]) => {
+  const mergedTrendEntries: TrendEntry[] = [];
+  for (let i = 0; i < trendEntries.length; i += 1) {
+    const trendEntry = trendEntries[i];
+    const nextTrendEntry = trendEntries[i + 1];
+    let inverseAmount = 0;
+    // If the next entry is the inverse of this one, consume it
+    if (nextTrendEntry && nextTrendEntry.type !== trendEntry.type) {
+      i += 1;
+      inverseAmount = nextTrendEntry.amount;
+    }
+    mergedTrendEntries.push({
+      ...trendEntry,
+      inverseAmount,
+    });
+  }
+  return mergedTrendEntries;
+};
+
+export const formatBalancesAsCSV = ({
+  balances,
+  accountName,
+  reportType,
+}: {
+  balances: TrendEntry[];
+  accountName?: string;
+  reportType?: ReportType;
+}) => {
+  const header = ['Date'];
+  const columns: (keyof TrendEntry | ((trendEntry: TrendEntry) => string | number))[] = ['date'];
+  let trendEntries = balances;
+  // net income/worth reports have two rows per date, CSV needs one row with two columns
+  if (reportType?.startsWith('NET_')) {
+    // merge the positive and negative balances into one row
+    trendEntries = zipTrendEntries(balances);
+    if (reportType === 'NET_INCOME') {
+      header.push('Income', 'Expenses');
+    } else {
+      header.push('Assts', 'Debts');
+    }
+    header.push('Net');
+    columns.push('amount', 'inverseAmount', (trendEntry) =>
+      (trendEntry.amount - trendEntry.inverseAmount).toFixed(2),
+    );
+  } else {
+    header.push('Amount');
+    columns.push('amount');
+  }
+  const maybeAccountColumn: [string?] = [];
+  if (accountName) {
+    header.push('Account Name');
+    maybeAccountColumn.push(accountName);
+  }
   // remove zero balances from the end of the report leaving just the first row if all are zero
-  const rows = balances.reduceRight(
-    (acc, { date, amount }, index) => {
-      if (acc.length || amount !== 0 || index === 0) {
-        acc.unshift([date, amount, ...maybeAccountColumn]);
+  const rows = trendEntries.reduceRight(
+    (acc, trendEntry, index) => {
+      if (acc.length || trendEntry.amount !== 0 || trendEntry.inverseAmount || index === 0) {
+        acc.unshift([
+          ...columns.map((col) => (typeof col === 'function' ? col(trendEntry) : trendEntry[col])),
+          ...maybeAccountColumn,
+        ]);
       }
       return acc;
     },
-    [] as [string, number, string?][],
+    [] as (string | number)[][],
   );
 
   return formatCSV([header, ...rows]);
 };
 
-const makeAccountIdFilter = (accountId: string) => ({
+export const makeAccountIdFilter = (accountId: string): AccountIdFilter => ({
   type: 'AccountIdFilter',
   accountId,
 });
+
+/** Convert trend state filter data to API request filters */
+const apiFilterForFilterData = (data: FilterData): ApiFilter => {
+  switch (data.type) {
+    case 'CATEGORY':
+      return {
+        type: 'CategoryIdFilter',
+        categoryId: data.categoryId,
+        includeChildCategories: data.includeChildCategories,
+      };
+    case 'DESCRIPTION':
+      return {
+        type: 'DescriptionNameFilter',
+        description: data.description,
+      };
+    case 'TAG':
+      return {
+        type: 'TagIdFilter',
+        tagId: data.tagId,
+      };
+    default:
+      throw new Error('Unsupported filter type');
+  }
+};

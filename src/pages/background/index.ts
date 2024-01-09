@@ -1,10 +1,13 @@
 import { ResponseStatus } from '@root/src/pages/popup/Popup';
 import { ErrorCode } from '@root/src/shared/constants/error';
-import { Action } from '@root/src/shared/hooks/useMessage';
+import { Action, Message } from '@root/src/shared/hooks/useMessage';
 import {
   fetchDailyBalancesForAllAccounts,
   formatBalancesAsCSV,
   BalanceHistoryCallbackProgress,
+  fetchDailyBalancesForTrend,
+  TrendBalanceHistoryCallbackProgress,
+  TrendEntry,
 } from '@root/src/shared/lib/accounts';
 import { throttle } from '@root/src/shared/lib/events';
 import stateStorage from '@root/src/shared/storages/stateStorage';
@@ -20,6 +23,8 @@ import reloadOnUpdate from 'virtual:reload-on-update-in-background-script';
 import 'webextension-polyfill';
 
 import * as Sentry from '@sentry/browser';
+import trendStorage, { TrendDownloadStatus } from '../../shared/storages/trendStorage';
+import { getCurrentTrendState } from '../../shared/lib/trends';
 
 // @ts-ignore - https://github.com/getsentry/sentry-javascript/issues/5289#issuecomment-1368705821
 Sentry.WINDOW.document = {
@@ -49,7 +54,7 @@ reloadOnUpdate('pages/background');
 
 const THROTTLE_INTERVAL_MS = 200;
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
   if (sender.tab?.url.startsWith('chrome://')) {
     return true;
   }
@@ -65,10 +70,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handlePopupOpened(sendResponse);
   } else if (message.action === Action.GetMintApiKey) {
     handleMintAuthentication(sendResponse);
+  } else if (message.action === Action.GetTrendState) {
+    handleGetTrendState(sendResponse);
   } else if (message.action === Action.DownloadTransactions) {
     handleTransactionsDownload(sendResponse);
   } else if (message.action === Action.DownloadAllAccountBalances) {
     handleDownloadAllAccountBalances(sendResponse);
+  } else if (message.action === Action.DownloadTrendBalances) {
+    handleDownloadTrendBalances(sendResponse);
   } else if (message.action === Action.DebugThrowError) {
     throw new Error('Debug error');
   } else {
@@ -125,6 +134,35 @@ function getMintApiKey() {
   return window.__shellInternal?.appExperience?.appApiKey;
 }
 
+const handleGetTrendState = async (sendResponse: (args: unknown) => void) => {
+  const [activeMintTab] = await chrome.tabs.query({
+    active: true,
+    url: 'https://mint.intuit.com/*',
+  });
+
+  // No active Mint tab, return early
+  if (!activeMintTab) {
+    sendResponse({ success: false, error: ErrorCode.MintTabNotFound });
+    return;
+  }
+
+  // Get the trend state from the page
+  const response = await chrome.scripting.executeScript({
+    target: { tabId: activeMintTab.id },
+    world: 'MAIN',
+    func: getCurrentTrendState,
+  });
+
+  const [{ result: trend }] = response;
+
+  await trendStorage.patch({ trend });
+  if (trend) {
+    sendResponse({ success: true, trend });
+  } else {
+    sendResponse({ success: false, error: ErrorCode.MintTrendStateNotFound });
+  }
+};
+
 const handleTransactionsDownload = async (sendResponse: (args: unknown) => void) => {
   const totalTransactionCount = await fetchTransactionsTotalCount();
 
@@ -170,7 +208,10 @@ const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
       const seenCount = (seenAccountNames[accountName] = (seenAccountNames[accountName] || 0) + 1);
       // If there are multiple accounts with the same name, export both with distinct filenames
       const disambiguation = seenCount > 1 ? ` (${seenCount - 1})` : '';
-      zip.file(`${accountName}${disambiguation}-${fiName}.csv`, formatBalancesAsCSV(balances, accountName));
+      zip.file(
+        `${accountName}${disambiguation}-${fiName}.csv`,
+        formatBalancesAsCSV({ balances, accountName }),
+      );
     });
 
     const zipFile = await zip.generateAsync({ type: 'base64' });
@@ -192,6 +233,48 @@ const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
   }
 };
 
+let pendingTrendBalances: Promise<TrendEntry[]>;
+
+/** Download daily balances for the specified trend. */
+const handleDownloadTrendBalances = async (sendResponse: () => void) => {
+  try {
+    if (pendingTrendBalances) {
+      // already downloading
+      await pendingTrendBalances;
+    } else {
+      const throttledSendDownloadTrendBalancesProgress = throttle(
+        sendDownloadTrendBalancesProgress,
+        THROTTLE_INTERVAL_MS,
+      );
+      const { trend } = await trendStorage.get();
+      await trendStorage.set({
+        trend,
+        status: TrendDownloadStatus.Loading,
+        progress: { completePercentage: 0 },
+      });
+      pendingTrendBalances = fetchDailyBalancesForTrend({
+        trend,
+        onProgress: throttledSendDownloadTrendBalancesProgress,
+      });
+      const balances = await pendingTrendBalances;
+      const { reportType } = trend;
+      const csv = formatBalancesAsCSV({ balances, reportType });
+
+      chrome.downloads.download({
+        url: `data:text/csv,${csv}`,
+        filename: 'mint-trend-daily-balances.csv',
+      });
+
+      await trendStorage.patch({ status: TrendDownloadStatus.Success });
+    }
+  } catch (e) {
+    await trendStorage.patch({ status: TrendDownloadStatus.Error });
+  } finally {
+    pendingTrendBalances = null;
+    sendResponse();
+  }
+};
+
 /**
  * Updates both the state storage and sends a message with the current progress,
  * so the popup can update the UI and we have a state to restore from if the
@@ -199,4 +282,8 @@ const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
  */
 const sendDownloadBalancesProgress = async (payload: BalanceHistoryCallbackProgress) => {
   await accountStorage.patch({ progress: payload });
+};
+
+const sendDownloadTrendBalancesProgress = async (payload: TrendBalanceHistoryCallbackProgress) => {
+  await trendStorage.patch({ progress: payload });
 };
