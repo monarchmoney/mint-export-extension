@@ -155,6 +155,7 @@ type AccountsResponse = {
     type: AccountType;
     id: string;
     name: string;
+    fiName: string;
   }[];
 };
 
@@ -311,6 +312,7 @@ const fetchDailyBalances = async ({
   reportType: ReportType;
   matchAllFilters?: ApiFilter[];
   matchAnyFilters?: ApiFilter[];
+  fiName?: string;
   overrideApiKey?: string;
   onProgress?: ProgressCallback;
 }) => {
@@ -323,7 +325,7 @@ const fetchDailyBalances = async ({
 
   const dailyBalancesByPeriod = await withRateLimit()(
     periods.map(
-      ({ start, end }) =>
+      ({ start, end }, index) =>
         () =>
           withRetry(() =>
             fetchTrends({
@@ -333,7 +335,11 @@ const fetchDailyBalances = async ({
               dateFilter: {
                 type: 'CUSTOM',
                 startDate: start.toISODate(),
-                endDate: end < DateTime.now() ? end.toISODate() : DateTime.now().toISODate(),
+                endDate:
+                  end < DateTime.now()
+                    ? // Eliminate overlap between periods w/o losing the last day of the last period
+                      end.minus({ day: index < periods.length - 1 ? 1 : 0 }).toISODate()
+                    : DateTime.now().toISODate(),
               },
               overrideApiKey,
             })
@@ -380,7 +386,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
 
   // first, fetch the range of dates we need to fetch for each account
   const accountsWithPeriodsToFetch = await withRateLimit()(
-    accounts.map(({ id: accountId, name: accountName }) => async () => {
+    accounts.map(({ id: accountId, name: accountName, fiName }) => async () => {
       const { periods, reportType } = await withDefaultOnError({
         periods: [] as Interval[],
         reportType: null as ReportType,
@@ -390,7 +396,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
           overrideApiKey,
         }),
       );
-      return { periods, reportType, accountId, accountName };
+      return { periods, reportType, accountId, accountName, fiName };
     }),
   );
 
@@ -403,7 +409,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
   // fetch one account at a time so we don't hit the rate limit
   const balancesByAccount = await resolveSequential(
     accountsWithPeriodsToFetch.map(
-      ({ accountId, accountName, periods, reportType }, accountIndex) =>
+      ({ accountId, accountName, periods, reportType, fiName }, accountIndex) =>
         async () => {
           const balances = await withDefaultOnError<TrendEntry[]>([])(
             fetchDailyBalances({
@@ -411,6 +417,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
               periods,
               reportType,
               overrideApiKey,
+              fiName,
               onProgress: ({ complete }) => {
                 // this is the progress handler for *each* account, so we need to sum up the results before calling onProgress
 
@@ -434,6 +441,7 @@ export const fetchDailyBalancesForAllAccounts = async ({
           return {
             balances,
             accountName,
+            fiName,
           };
         },
     ),

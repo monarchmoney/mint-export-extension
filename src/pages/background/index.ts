@@ -204,12 +204,12 @@ const handleDownloadAllAccountBalances = async (sendResponse: () => void) => {
     // combine CSV for each account into one zip file
     const zip = new JSZip();
     const seenAccountNames = {};
-    successAccounts.forEach(({ accountName, balances }) => {
+    successAccounts.forEach(({ accountName, fiName, balances }) => {
       const seenCount = (seenAccountNames[accountName] = (seenAccountNames[accountName] || 0) + 1);
       // If there are multiple accounts with the same name, export both with distinct filenames
       const disambiguation = seenCount > 1 ? ` (${seenCount - 1})` : '';
       zip.file(
-        `${accountName}${disambiguation}.csv`,
+        `${accountName}${disambiguation}-${fiName}.csv`,
         formatBalancesAsCSV({ balances, accountName }),
       );
     });
