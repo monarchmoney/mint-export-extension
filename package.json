@@ -80,7 +80,7 @@
     "prettier-plugin-tailwindcss": "^0.5.7",
     "release-it": "^17.0.0",
     "rollup": "2.79.1",
-    "sass": "1.62.1",
+    "sass": "1.72.0",
     "ts-jest": "29.0.2",
     "ts-loader": "9.4.2",
     "ts-node": "^10.9.1",
